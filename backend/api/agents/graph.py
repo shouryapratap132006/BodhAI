@@ -52,7 +52,9 @@ class BodhState(TypedDict):
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
-def _llm(temperature: float = 0) -> ChatGroq:
+def _llm(temperature: float = 0, json_mode: bool = False) -> ChatGroq:
+    if json_mode:
+        return ChatGroq(model="llama-3.3-70b-versatile", temperature=temperature, model_kwargs={"response_format": {"type": "json_object"}})
     return ChatGroq(model="llama-3.3-70b-versatile", temperature=temperature)
 
 
@@ -110,7 +112,7 @@ def intent_node(state: BodhState) -> dict:
     Classify the user's request into one of six intents.
     Uses a fast, zero-temp call to avoid hallucination.
     """
-    llm = _llm(temperature=0)
+    llm = _llm(temperature=0, json_mode=True)
     history_text = _history_to_text(state.get("conversation_history", []))
     prompt = (
         "You are an intent classifier for an AI tutoring system.\n\n"
@@ -176,7 +178,7 @@ def content_node(state: BodhState) -> dict:
     Generate the primary response based on intent.
     On refinement passes, incorporates the evaluator's feedback.
     """
-    llm = _llm(temperature=0.3)
+    llm = _llm(temperature=0.3, json_mode=True)
     intent = state.get("intent", "learn_topic")
     mode = state.get("mode", "balanced")
     mode_instr = _mode_instructions(mode)
@@ -295,7 +297,7 @@ def student_node(state: BodhState) -> dict:
     if intent in {"quiz_me", "homework"}:
         return {"student_attempt": ""}
 
-    llm = _llm(temperature=0.6)  # Higher temp for more varied student responses
+    llm = _llm(temperature=0.6, json_mode=True)  # Higher temp for more varied student responses
     explanation = state.get("explanation", "")
     steps = state.get("steps", [])
 
@@ -324,7 +326,7 @@ def evaluator_node(state: BodhState) -> dict:
     Evaluate whether the content explanation is clear and complete.
     If a student attempt exists, evaluate that too.
     """
-    llm = _llm(temperature=0)
+    llm = _llm(temperature=0, json_mode=True)
     explanation = state.get("explanation", "")
     steps = state.get("steps", [])
     student_attempt = state.get("student_attempt", "")
@@ -382,7 +384,7 @@ def refiner_node(state: BodhState) -> dict:
     Improve the explanation based on evaluator feedback.
     Produces an improved_explanation and increments refinement_pass.
     """
-    llm = _llm(temperature=0.2)
+    llm = _llm(temperature=0.2, json_mode=True)
     explanation = state.get("explanation", "")
     feedback = state.get("evaluation", {}).get("feedback", "")
     mode = state.get("mode", "balanced")
