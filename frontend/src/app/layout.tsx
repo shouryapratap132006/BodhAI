@@ -9,17 +9,23 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "BodhAI — Intelligent Learning Assistant",
+  title: "BodhAI — Personal AI Tutor",
   description:
-    "BodhAI is a powerful AI learning assistant that explains any topic with clarity — from beginner to advanced. Upload documents or enter a topic to learn instantly.",
-  keywords: ["AI", "learning", "education", "BodhAI", "intelligent tutor"],
+    "BodhAI is your personal AI tutor that teaches concepts, solves problems step-by-step, quizzes you, and adapts to your level in real-time. Like a human teacher, powered by AI.",
+  keywords: [
+    "AI tutor", "learn with AI", "BodhAI", "intelligent learning",
+    "quiz AI", "homework help", "concept explanation", "LangGraph",
+  ],
+  openGraph: {
+    title: "BodhAI — Personal AI Tutor",
+    description: "Teach, test, guide, and adapt — just like a real teacher.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
       <body className="h-full antialiased">{children}</body>

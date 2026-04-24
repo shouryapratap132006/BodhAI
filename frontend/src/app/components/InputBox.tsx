@@ -3,8 +3,7 @@
 import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, File as FileIcon, X, Loader2, ArrowUp } from "lucide-react";
-
-type Mode = "beginner" | "balanced" | "advanced";
+import type { Mode } from "../page";
 
 interface InputBoxProps {
   input: string;
@@ -26,23 +25,23 @@ const MODES: { value: Mode; label: string }[] = [
 
 const modeAccent: Record<Mode, string> = {
   beginner: "text-emerald-400 bg-emerald-400/8 border-emerald-400/20",
-  balanced: "text-blue-400 bg-blue-400/8 border-blue-400/20",
+  balanced: "text-blue-400   bg-blue-400/8   border-blue-400/20",
   advanced: "text-orange-400 bg-orange-400/8 border-orange-400/20",
 };
 
+// Quick-prompt pills shown above input when empty
+const QUICK_PROMPTS = [
+  { label: "📖 Learn", prompt: "Explain " },
+  { label: "🔍 Solve", prompt: "Help me solve: " },
+  { label: "🎯 Quiz",  prompt: "Quiz me on " },
+  { label: "📝 Homework", prompt: "Give me practice problems on " },
+  { label: "⚡ Revise", prompt: "Quick revision of " },
+];
+
 export default function InputBox({
-  input,
-  setInput,
-  mode,
-  setMode,
-  file,
-  setFile,
-  loading,
-  onSubmit,
-  compact = false,
+  input, setInput, mode, setMode, file, setFile, loading, onSubmit, compact = false,
 }: InputBoxProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const canSubmit = (input.trim().length > 0 || file !== null) && !loading;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -54,6 +53,31 @@ export default function InputBox({
 
   return (
     <div className="w-full max-w-[720px] mx-auto px-4">
+      {/* Quick-prompt pills — only show when not compact and no input */}
+      <AnimatePresence>
+        {!compact && !input && !file && (
+          <motion.div
+            key="quick-prompts"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.2 }}
+            className="flex flex-wrap gap-1.5 mb-3"
+          >
+            {QUICK_PROMPTS.map((p) => (
+              <button
+                key={p.label}
+                onClick={() => setInput(p.prompt)}
+                className="px-2.5 py-1 text-[11px] rounded-full border border-[#1e1e1e] text-[#444]
+                  hover:text-[#888] hover:border-[#2e2e2e] bg-[#0d0d0d] transition-all duration-150"
+              >
+                {p.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Attached file pill */}
       <AnimatePresence>
         {file && (
@@ -82,14 +106,14 @@ export default function InputBox({
       <div className="input-box relative flex flex-col bg-[#141414] rounded-2xl border border-[#242424] shadow-2xl">
         {/* Textarea */}
         <textarea
-          id="learn-input"
+          id="chat-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={
             file
               ? "Add context for this document (optional)…"
-              : "Enter a topic or upload a file to learn…"
+              : "Ask anything — learn, solve, quiz, revise…"
           }
           rows={compact ? 1 : 2}
           className={[
@@ -103,7 +127,7 @@ export default function InputBox({
         <div className="flex items-center justify-between px-3 pb-3 pt-0">
           {/* Left: mode + upload */}
           <div className="flex items-center gap-2">
-            {/* Mode selector pills */}
+            {/* Mode selector */}
             <div className="flex items-center gap-1 rounded-lg bg-[#0d0d0d] border border-[#1e1e1e] p-0.5">
               {MODES.map((m) => (
                 <button
@@ -130,7 +154,6 @@ export default function InputBox({
               accept=".pdf,.ppt,.pptx,.jpg,.jpeg,.png"
               onChange={(e) => {
                 if (e.target.files?.[0]) setFile(e.target.files[0]);
-                // reset so the same file can be re-selected
                 e.target.value = "";
               }}
             />
@@ -157,13 +180,11 @@ export default function InputBox({
                 ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20 hover:bg-orange-400"
                 : "bg-[#1e1e1e] text-[#3a3a3a] cursor-not-allowed",
             ].join(" ")}
-            aria-label="Submit"
+            aria-label="Send"
           >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
-            )}
+            {loading
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <ArrowUp className="w-4 h-4" strokeWidth={2.5} />}
           </motion.button>
         </div>
       </div>

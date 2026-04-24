@@ -5,72 +5,71 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, BookOpen } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import InputBox from "./components/InputBox";
-import ResponseCard from "./components/ResponseCard";
+import ChatMessage from "./components/ChatMessage";
 
-// ── Types ─────────────────────────────────────────────────────
-type Mode = "beginner" | "balanced" | "advanced";
+// ── Types ──────────────────────────────────────────────────────────────────
+export type Intent =
+  | "learn_topic"
+  | "solve_question"
+  | "quiz_me"
+  | "homework"
+  | "revise"
+  | "explain_again";
 
-type Result = {
-  explanation: string;
-  steps: string[];
-  question: string;
+export type ResponseType = "learn" | "solve" | "quiz" | "homework" | "revise";
+export type Mode = "beginner" | "balanced" | "advanced";
+
+export type Resource = { title: string; type: "article" | "video"; link: string };
+export type Question = {
+  type: "mcq" | "short" | "easy" | "medium" | "hard" | "challenge" | "conceptual";
+  text: string;
+  options?: string[];
+  answer?: string;
+  hint?: string;
+};
+export type Evaluation = { correct: boolean; feedback: string };
+
+export type TurnMessage = {
+  role: "user" | "assistant";
+  content?: string;             // user text
+  // assistant payload
+  intent?: Intent;
+  type?: ResponseType;
+  explanation?: string;
+  steps?: string[];
+  hint?: string;
+  solution?: string;
+  example?: string;
+  questions?: Question[];
+  student_attempt?: string;
+  evaluation?: Evaluation;
+  improved_explanation?: string;
+  resources?: Resource[];
 };
 
-type HistoryItem = {
+export type ConversationSummary = {
   id: number;
-  input_text: string;
+  title: string;
   mode: Mode;
-  explanation: string;
-  steps: string[];
-  question: string;
-  file_type: string | null;
   created_at: string;
+  updated_at: string;
+  last_message?: { intent: string; user_input: string } | null;
 };
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api";
 
-// ── Loading skeleton ──────────────────────────────────────────
-function LoadingSkeleton() {
-  return (
-    <div className="space-y-6 animate-pulse">
-      {/* Section label */}
-      <div>
-        <div className="h-2.5 w-20 bg-[#222] rounded-full mb-4" />
-        <div className="space-y-2.5">
-          <div className="h-3 bg-[#1e1e1e] rounded-full w-full" />
-          <div className="h-3 bg-[#1e1e1e] rounded-full w-[92%]" />
-          <div className="h-3 bg-[#1e1e1e] rounded-full w-[85%]" />
-          <div className="h-3 bg-[#1e1e1e] rounded-full w-[78%]" />
-        </div>
-      </div>
-      <div>
-        <div className="h-2.5 w-14 bg-[#222] rounded-full mb-4" />
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex gap-3">
-              <div className="w-6 h-6 rounded-full bg-[#1e1e1e] shrink-0" />
-              <div className="flex-1 space-y-1.5 pt-1">
-                <div className="h-3 bg-[#1e1e1e] rounded-full w-full" />
-                <div className="h-3 bg-[#1e1e1e] rounded-full w-[80%]" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="rounded-xl border border-[#222] bg-[#111] p-4">
-        <div className="h-2.5 w-28 bg-[#222] rounded-full mb-3" />
-        <div className="space-y-2">
-          <div className="h-3 bg-[#1a1a1a] rounded-full w-full" />
-          <div className="h-3 bg-[#1a1a1a] rounded-full w-[70%]" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Empty state ───────────────────────────────────────────────
+// ── Empty / Welcome state ──────────────────────────────────────────────────
 function EmptyState() {
+  const chips = [
+    { label: "Learn a topic", example: "Explain Newton's laws of motion" },
+    { label: "Solve a problem", example: "How do I solve a quadratic equation?" },
+    { label: "Quiz me", example: "Quiz me on photosynthesis" },
+    { label: "Homework", example: "Give me practice problems on integration" },
+    { label: "Revise", example: "Quick revision of World War II causes" },
+    { label: "Explain again", example: "Explain recursion in simpler terms" },
+  ];
+
   return (
     <motion.div
       key="empty"
@@ -78,169 +77,256 @@ function EmptyState() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
-      className="flex flex-col items-center justify-center text-center select-none"
-      style={{ minHeight: "55vh" }}
+      className="flex flex-col items-center justify-center text-center select-none pt-16 pb-8"
     >
-      {/* Logo mark */}
+      {/* Logo */}
       <motion.div
         initial={{ scale: 0.85, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center mb-6 shadow-lg shadow-orange-500/20"
+        className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center mb-6 shadow-lg shadow-orange-500/20"
       >
-        <BookOpen className="w-7 h-7 text-white" strokeWidth={2} />
+        <BookOpen className="w-8 h-8 text-white" strokeWidth={2} />
       </motion.div>
 
-      {/* Title */}
       <motion.h1
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.5 }}
-        className="text-[32px] md:text-[38px] font-semibold tracking-tight glow-text mb-2"
+        className="text-[34px] md:text-[42px] font-semibold tracking-tight glow-text mb-2"
       >
         <span className="text-orange-400">Bodh</span>
         <span className="text-white">AI</span>
       </motion.h1>
 
-      {/* Tagline */}
       <motion.p
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.5 }}
-        className="text-[15px] text-[#4a4a58] max-w-sm font-light"
+        className="text-[15px] text-[#4a4a58] max-w-sm font-light mb-10"
       >
-        Your intelligent learning assistant.
-        <br />
-        Enter a topic or upload a document to begin.
+        Your personal AI tutor. Teach, test, guide and adapt — just like a real teacher.
       </motion.p>
 
-      {/* Subtle feature chips */}
+      {/* Prompt chips */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4, duration: 0.6 }}
-        className="flex flex-wrap justify-center gap-2 mt-8"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35, duration: 0.5 }}
+        className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-[560px] px-2"
       >
-        {["Explain anything", "Step-by-step", "Practice questions", "PDF & PPT support"].map(
-          (tag) => (
-            <span
-              key={tag}
-              className="px-3 py-1 text-[11px] rounded-full border border-[#1e1e1e] text-[#3a3a3a] bg-[#0d0d0d]"
-            >
-              {tag}
-            </span>
-          )
-        )}
+        {chips.map((chip, i) => (
+          <div
+            key={i}
+            className="text-left px-4 py-3 rounded-xl border border-[#1e1e1e] bg-[#0f0f0f]
+              hover:border-orange-500/30 hover:bg-[#141414] transition-all duration-200 cursor-default group"
+          >
+            <p className="text-[12px] font-semibold text-orange-500/80 mb-0.5 uppercase tracking-wider">
+              {chip.label}
+            </p>
+            <p className="text-[13px] text-[#444] group-hover:text-[#666] transition-colors leading-snug">
+              {chip.example}
+            </p>
+          </div>
+        ))}
       </motion.div>
     </motion.div>
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────
+// ── Typing indicator ───────────────────────────────────────────────────────
+function TypingIndicator() {
+  return (
+    <div className="flex items-start gap-3 mb-6">
+      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shrink-0 mt-0.5">
+        <BookOpen className="w-4 h-4 text-white" strokeWidth={2} />
+      </div>
+      <div className="flex items-center gap-1.5 bg-[#141414] border border-[#242424] rounded-2xl rounded-tl-sm px-4 py-3">
+        {[0, 0.15, 0.3].map((delay, i) => (
+          <motion.div
+            key={i}
+            className="w-2 h-2 rounded-full bg-orange-500/60"
+            animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.1, 0.8] }}
+            transition={{ duration: 1.2, delay, repeat: Infinity, ease: "easeInOut" }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ──────────────────────────────────────────────────────────────
 export default function Home() {
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<Mode>("balanced");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<Result | null>(null);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [activeId, setActiveId] = useState<number | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Chat turns: array of user + assistant messages
+  const [turns, setTurns] = useState<TurnMessage[]>([]);
+  const [activeConvId, setActiveConvId] = useState<number | null>(null);
+
+  // Sidebar conversations list
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Load history on mount
-  const loadHistory = useCallback(async () => {
+  // ── Load conversations list ───────────────────────────────────────
+  const loadConversations = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/history/`);
+      const res = await fetch(`${API_URL}/conversations/`);
       if (!res.ok) return;
-      const data: HistoryItem[] = await res.json();
-      setHistory(data);
-    } catch {
-      // silently ignore — history is non-critical
-    }
+      const data: ConversationSummary[] = await res.json();
+      setConversations(data);
+    } catch { /* non-critical */ }
   }, []);
 
-  useEffect(() => {
-    loadHistory();
-  }, [loadHistory]);
+  useEffect(() => { loadConversations(); }, [loadConversations]);
 
-  // Auto-scroll to result
+  // ── Auto-scroll ───────────────────────────────────────────────────
   useEffect(() => {
-    if (result) {
+    if (turns.length > 0 || loading) {
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
     }
-  }, [result]);
+  }, [turns, loading]);
 
-  // Close sidebar on desktop resize
+  // ── Resize handler ────────────────────────────────────────────────
   useEffect(() => {
-    const onResize = () => {
-      if (window.innerWidth >= 768) setSidebarOpen(false);
-    };
+    const onResize = () => { if (window.innerWidth >= 768) setSidebarOpen(false); };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const handleLearn = async () => {
+  // ── Send message ──────────────────────────────────────────────────
+  const handleSend = async () => {
     if (!input.trim() && !file) return;
     setLoading(true);
-    setResult(null);
     setError(null);
-    setActiveId(null);
+
+    const userMessage: TurnMessage = { role: "user", content: input };
+    setTurns(prev => [...prev, userMessage]);
 
     const formData = new FormData();
     formData.append("input", input);
     formData.append("mode", mode);
+    if (activeConvId) formData.append("conversation_id", String(activeConvId));
     if (file) formData.append("file", file);
 
+    setInput("");
+    setFile(null);
+
     try {
-      const res = await fetch(`${API_URL}/learn/`, {
-        method: "POST",
-        body: formData,
-      });
+      const res = await fetch(`${API_URL}/chat/`, { method: "POST", body: formData });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data: Result = await res.json();
-      setResult(data);
-      setInput("");
-      setFile(null);
-      loadHistory();
+      const data = await res.json();
+
+      // Set active conversation
+      if (data.conversation_id) setActiveConvId(data.conversation_id);
+
+      const assistantMessage: TurnMessage = {
+        role: "assistant",
+        intent: data.intent,
+        type: data.type,
+        explanation: data.explanation,
+        steps: data.steps,
+        hint: data.hint,
+        solution: data.solution,
+        example: data.example,
+        questions: data.questions,
+        student_attempt: data.student_attempt,
+        evaluation: data.evaluation,
+        improved_explanation: data.improved_explanation,
+        resources: data.resources,
+      };
+      setTurns(prev => [...prev, assistantMessage]);
+      loadConversations();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+      // Remove the optimistic user message on error
+      setTurns(prev => prev.slice(0, -1));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSelectHistory = (item: HistoryItem) => {
-    setResult({ explanation: item.explanation, steps: item.steps, question: item.question });
-    setActiveId(item.id);
-    setInput("");
-    setFile(null);
-    setMode(item.mode);
-    if (window.innerWidth < 768) setSidebarOpen(false);
+  // ── Load existing conversation ────────────────────────────────────
+  const handleSelectConversation = async (conv: ConversationSummary) => {
+    if (conv.id === activeConvId) {
+      if (window.innerWidth < 768) setSidebarOpen(false);
+      return;
+    }
+    setLoading(true);
+    setTurns([]);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/conversations/${conv.id}/`);
+      if (!res.ok) throw new Error("Failed to load conversation");
+      const data = await res.json();
+      setActiveConvId(conv.id);
+      setMode(conv.mode as Mode);
+
+      // Reconstruct turns from messages
+      const rebuilt: TurnMessage[] = [];
+      for (const msg of data.messages ?? []) {
+        rebuilt.push({ role: "user", content: msg.user_input });
+        rebuilt.push({
+          role: "assistant",
+          intent: msg.intent,
+          type: msg.response_type,
+          explanation: msg.explanation,
+          steps: msg.steps,
+          hint: msg.hint,
+          solution: msg.solution,
+          example: msg.example,
+          questions: msg.questions,
+          student_attempt: msg.student_attempt,
+          evaluation: msg.evaluation,
+          improved_explanation: msg.improved_explanation,
+          resources: msg.resources,
+        });
+      }
+      setTurns(rebuilt);
+    } catch {
+      setError("Could not load conversation.");
+    } finally {
+      setLoading(false);
+      if (window.innerWidth < 768) setSidebarOpen(false);
+    }
   };
 
-  const handleNewTopic = () => {
-    setResult(null);
+  // ── Delete conversation ───────────────────────────────────────────
+  const handleDeleteConversation = async (convId: number) => {
+    try {
+      await fetch(`${API_URL}/conversations/${convId}/`, { method: "DELETE" });
+      if (convId === activeConvId) handleNewChat();
+      loadConversations();
+    } catch { /* ignore */ }
+  };
+
+  // ── New chat ──────────────────────────────────────────────────────
+  const handleNewChat = () => {
+    setTurns([]);
     setInput("");
     setFile(null);
     setMode("balanced");
-    setActiveId(null);
+    setActiveConvId(null);
     setError(null);
     if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
-  const hasContent = loading || result !== null || error !== null;
+  const hasContent = turns.length > 0 || loading || error !== null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#0a0a0a] text-white">
       {/* ── Sidebar ── */}
       <Sidebar
-        history={history}
-        activeId={activeId}
-        onSelect={handleSelectHistory}
-        onNewTopic={handleNewTopic}
+        conversations={conversations}
+        activeId={activeConvId}
+        onSelect={handleSelectConversation}
+        onNewChat={handleNewChat}
+        onDelete={handleDeleteConversation}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -263,7 +349,7 @@ export default function Home() {
           </span>
         </header>
 
-        {/* ── Scrollable content area ── */}
+        {/* ── Scrollable chat area ── */}
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-[720px] mx-auto px-4 py-8">
             <AnimatePresence mode="wait">
@@ -271,31 +357,32 @@ export default function Home() {
                 <EmptyState key="empty" />
               ) : (
                 <motion.div
-                  key="content"
+                  key="chat"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
+                  transition={{ duration: 0.25 }}
                   className="pb-52"
                 >
-                  {/* Error state */}
+                  {/* Error banner */}
                   {error && (
-                    <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-[13px] text-red-400">
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-[13px] text-red-400 mb-6"
+                    >
                       {error}
-                    </div>
+                    </motion.div>
                   )}
 
-                  {/* Loading skeleton */}
-                  {loading && <LoadingSkeleton />}
+                  {/* Chat turns */}
+                  {turns.map((turn, idx) => (
+                    <ChatMessage key={idx} message={turn} />
+                  ))}
 
-                  {/* Response */}
-                  {result && !loading && (
-                    <ResponseCard
-                      explanation={result.explanation}
-                      steps={result.steps}
-                      question={result.question}
-                    />
-                  )}
+                  {/* Typing indicator */}
+                  {loading && <TypingIndicator />}
+
                   <div ref={chatEndRef} />
                 </motion.div>
               )}
@@ -303,7 +390,7 @@ export default function Home() {
           </div>
         </main>
 
-        {/* ── Fixed input at bottom ── */}
+        {/* ── Fixed input ── */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -319,7 +406,7 @@ export default function Home() {
               file={file}
               setFile={setFile}
               loading={loading}
-              onSubmit={handleLearn}
+              onSubmit={handleSend}
               compact={hasContent}
             />
           </div>
