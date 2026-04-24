@@ -14,6 +14,7 @@ Intents:
 import json
 import re
 from typing import TypedDict, List, Optional, Literal
+from duckduckgo_search import DDGS
 
 from langgraph.graph import StateGraph, START, END
 from langchain_groq import ChatGroq
@@ -56,6 +57,43 @@ def _llm(temperature: float = 0, json_mode: bool = False) -> ChatGroq:
     if json_mode:
         return ChatGroq(model="llama-3.3-70b-versatile", temperature=temperature, model_kwargs={"response_format": {"type": "json_object"}})
     return ChatGroq(model="llama-3.3-70b-versatile", temperature=temperature)
+
+def _fetch_trusted_resources(query: str) -> List[dict]:
+    """Fetch verified real YouTube videos and trusted articles using DuckDuckGo."""
+    resources = []
+    try:
+        ddgs = DDGS()
+        # Fetch 2 educational videos
+        videos = list(ddgs.videos(f"{query} educational tutorial", max_results=2))
+        for v in videos:
+            if v.get("content"):
+                resources.append({
+                    "title": v.get("title", "Educational Video"),
+                    "type": "video",
+                    "link": v.get("content")
+                })
+                
+        # Fetch 2 trusted articles from verified educational domains
+        domains = "site:khanacademy.org OR site:coursera.org OR site:mit.edu OR site:libretexts.org OR site:byjus.com OR site:brilliant.org"
+        articles = list(ddgs.text(f"{query} {domains}", max_results=2))
+        # If no strict domain hits, fallback to a general query
+        if not articles:
+             articles = list(ddgs.text(f"{query} tutorial explanation", max_results=2))
+             
+        for a in articles:
+            # Skip wikipedia if requested, though sometimes it's okay. We already prioritize educational domains.
+            if a.get("href") and "wikipedia.org" not in a.get("href"):
+                resources.append({
+                    "title": a.get("title", "Educational Article"),
+                    "type": "article",
+                    "link": a.get("href")
+                })
+    except Exception as e:
+        print(f"Error fetching resources: {e}")
+        pass
+    
+    # Cap to max 4 resources
+    return resources[:4]
 
 
 def _safe_json(raw: str) -> dict:
@@ -126,7 +164,8 @@ def intent_node(state: BodhState) -> dict:
         "  quiz_me         – wants to be tested (MCQs, questions)\n"
         "  homework        – wants practice problems / assignments\n"
         "  revise          – wants a quick revision/recap\n"
-        "  explain_again   – wants a simpler or deeper re-explanation\n\n"
+        "  explain_again   – wants a simpler or deeper re-explanation\n"
+        "  get_resources   – wants links, videos, or study materials for a topic\n\n"
         'Return ONLY a raw JSON object: {"intent": "<one of the above>"}'
     )
     resp = llm.invoke([
@@ -135,7 +174,7 @@ def intent_node(state: BodhState) -> dict:
     ])
     parsed = _safe_json(resp.content)
     intent = parsed.get("intent", "learn_topic")
-    valid = {"learn_topic", "solve_question", "quiz_me", "homework", "revise", "explain_again"}
+    valid = {"learn_topic", "solve_question", "quiz_me", "homework", "revise", "explain_again", "get_resources"}
     if intent not in valid:
         intent = "learn_topic"
     return {"intent": intent, "refinement_pass": 0}
@@ -235,6 +274,10 @@ def content_node(state: BodhState) -> dict:
             '{"response_type":"learn","explanation":"...","steps":["..."],'
             '"example":"...","question":"...","resources":[]}'
         ),
+        "get_resources": (
+            "learn",
+            '{"response_type":"learn","explanation":"Brief overview of the topic before sharing resources...","resources":[]}'
+        ),
     }
 
     resp_type, output_template = output_specs.get(intent, output_specs["learn_topic"])
@@ -271,6 +314,15 @@ def content_node(state: BodhState) -> dict:
             "steps": [],
         }
 
+    # Inject VERIFIED REAL resources if it's an intent that benefits from resources
+    final_resources = parsed.get("resources", [])
+    if intent in ["learn_topic", "solve_question", "get_resources"]:
+        query = state.get("input", "")
+        # If the input is just "give me resources", we should use context. We will just use the input for now.
+        fetched = _fetch_trusted_resources(query)
+        if fetched:
+            final_resources = fetched
+
     return {
         "response_type":  parsed.get("response_type", resp_type),
         "explanation":    parsed.get("explanation", ""),
@@ -279,7 +331,7 @@ def content_node(state: BodhState) -> dict:
         "solution":       parsed.get("solution", ""),
         "questions":      parsed.get("questions", []),
         "example":        parsed.get("example", ""),
-        "resources":      parsed.get("resources", []),
+        "resources":      final_resources,
     }
 
 

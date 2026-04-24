@@ -25,6 +25,7 @@ const intentConfig: Record<string, { label: string; color: string }> = {
   homework:       { label: "📝 Homework",      color: "text-green-400  bg-green-400/10  border-green-400/20"  },
   revise:         { label: "⚡ Revise",        color: "text-cyan-400   bg-cyan-400/10   border-cyan-400/20"   },
   explain_again:  { label: "🔄 Re-explain",    color: "text-orange-400 bg-orange-400/10 border-orange-400/20" },
+  get_resources:  { label: "📚 Resources",     color: "text-pink-400   bg-pink-400/10   border-pink-400/20"   },
 };
 
 // ── Section label ──────────────────────────────────────────────────────────
@@ -289,23 +290,26 @@ function ResourcesList({ resources }: { resources: Resource[] }) {
     <motion.section variants={blockVariants}>
       <SectionLabel icon={<ExternalLink className="w-3.5 h-3.5" />} text="Resources" color="text-[#555]" />
       <div className="flex flex-wrap gap-2">
-        {resources.map((r, i) => (
-          <a
-            key={i}
-            href={r.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#242424] bg-[#0f0f0f]
-              hover:border-orange-500/30 hover:bg-[#141414] transition-all duration-200 group"
-          >
-            {r.type === "video"
-              ? <Play className="w-3.5 h-3.5 text-red-400 shrink-0" />
-              : <ExternalLink className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
-            <span className="text-[12px] text-[#777] group-hover:text-[#aaa] transition-colors max-w-[200px] truncate">
-              {r.title}
-            </span>
-          </a>
-        ))}
+        {resources.map((r, i) => {
+          const href = r.link || (r as any).url || "#";
+          return (
+            <a
+              key={i}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#242424] bg-[#0f0f0f]
+                hover:border-orange-500/30 hover:bg-[#141414] transition-all duration-200 group"
+            >
+              {r.type === "video"
+                ? <Play className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                : <ExternalLink className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+              <span className="text-[12px] text-[#777] group-hover:text-[#aaa] transition-colors max-w-[200px] truncate">
+                {r.title}
+              </span>
+            </a>
+          );
+        })}
       </div>
     </motion.section>
   );

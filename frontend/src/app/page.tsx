@@ -14,7 +14,8 @@ export type Intent =
   | "quiz_me"
   | "homework"
   | "revise"
-  | "explain_again";
+  | "explain_again"
+  | "get_resources";
 
 export type ResponseType = "learn" | "solve" | "quiz" | "homework" | "revise";
 export type Mode = "beginner" | "balanced" | "advanced";
@@ -66,6 +67,7 @@ const ACTION_CHIPS = [
   { label: "Homework", example: "Give me practice problems on integration" },
   { label: "Revise", example: "Quick revision of World War II causes" },
   { label: "Explain again", example: "Explain recursion in simpler terms" },
+  { label: "Resources", example: "Give me good resources and videos for Quantum Mechanics" },
 ];
 
 // ── Empty / Welcome state ──────────────────────────────────────────────────

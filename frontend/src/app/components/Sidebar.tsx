@@ -6,7 +6,7 @@ import type { ConversationSummary, Mode } from "../page";
 
 const intentEmoji: Record<string, string> = {
   learn_topic: "📖", solve_question: "🔍", quiz_me: "🎯",
-  homework: "📝", revise: "⚡", explain_again: "🔄",
+  homework: "📝", revise: "⚡", explain_again: "🔄", get_resources: "📚",
 };
 
 const modeColors: Record<string, string> = {
