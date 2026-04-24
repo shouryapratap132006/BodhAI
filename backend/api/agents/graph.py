@@ -1,90 +1,125 @@
+"""
+LangGraph agent graph for BodhAI.
+
+Two-node pipeline:
+  Architect  →  Content
+
+The graph is compiled once at import time (cheap – just wires edges).
+LLM clients are instantiated inside each node so they pick up the env
+variable GROQ_API_KEY lazily, after Django settings have been loaded.
+"""
+
 import json
 import re
 from typing import TypedDict, List
+
 from langgraph.graph import StateGraph, START, END
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 
+
+# ── State schema ──────────────────────────────────────────────
 class BodhState(TypedDict):
     input: str
     mode: str
-    architectOutline: str
+    architect_outline: str
     explanation: str
     steps: List[str]
     question: str
 
-def architect_node(state: BodhState) -> BodhState:
+
+# ── Architect node ────────────────────────────────────────────
+def architect_node(state: BodhState) -> dict:
+    """Identify key concepts and produce a learning outline."""
     llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
-    prompt = f"""You are an expert curriculum architect. 
-Identify key concepts and create a structured learning outline for the following topic:
-
-Topic: {state.get('input', '')}
-
-Return the structure directly in bullet points or a short outline."""
-
+    prompt = (
+        "You are an expert curriculum architect.\n"
+        "Identify the key concepts and create a concise, structured learning "
+        "outline for the following topic/content.\n\n"
+        f"Content:\n{state.get('input', '')}\n\n"
+        "Return bullet-point outline only. Be brief."
+    )
     response = llm.invoke([
-        SystemMessage(content="You are a helpful AI architect."),
-        HumanMessage(content=prompt)
+        SystemMessage(content="You are a helpful AI curriculum architect."),
+        HumanMessage(content=prompt),
     ])
-    
-    return {"architectOutline": response.content}
+    return {"architect_outline": response.content}
 
-def content_node(state: BodhState) -> BodhState:
+
+# ── Content node ──────────────────────────────────────────────
+def content_node(state: BodhState) -> dict:
+    """Generate explanation, steps, and a practice question."""
     llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2)
-    prompt = f"""You are an expert AI tutor. Your task is to generate learning content based on the user's preferred learning style.
 
-### Topic:
-{state.get('input', '')}
+    mode = state.get("mode", "balanced")
+    mode_instructions = {
+        "beginner": (
+            "Explain in very simple terms. Use real-life analogies. "
+            "Avoid jargon. Assume the reader knows nothing."
+        ),
+        "balanced": (
+            "Mix intuitive explanation with moderate technical depth. "
+            "Keep it clear but informative."
+        ),
+        "advanced": (
+            "Provide full technical depth. Include precise reasoning. "
+            "Assume strong prior knowledge."
+        ),
+    }.get(mode, "")
 
-### Learning Mode:
-{state.get('mode', 'balanced')}
-
-### Outline from Architect:
-{state.get('architectOutline', '')}
-
-### Instructions:
-Adapt your explanation based on the mode:
-- If mode = "beginner": Explain in very simple terms, use analogies and real-life examples, avoid jargon.
-- If mode = "balanced": Mix intuition with moderate technical depth, keep explanation clear but slightly deeper.
-- If mode = "advanced": Provide technical depth, include detailed reasoning, assume prior knowledge.
-
-### Output Format:
-Return your response STRICTLY as a JSON object with the following schema, and NOTHING else. Do not use Markdown JSON wrappers if possible, just return the raw JSON text.
-{{
-  "explanation": "...",
-  "steps": ["...", "..."],
-  "question": "..."
-}}"""
+    prompt = (
+        "You are an expert AI tutor.\n\n"
+        f"### Content / Topic:\n{state.get('input', '')}\n\n"
+        f"### Learning Outline:\n{state.get('architect_outline', '')}\n\n"
+        f"### Learning Mode: {mode}\n"
+        f"{mode_instructions}\n\n"
+        "### Output Format:\n"
+        "Return ONLY a raw JSON object (no markdown fences) matching:\n"
+        '{"explanation": "...", "steps": ["...", "..."], "question": "..."}\n\n'
+        "- explanation: 2-4 paragraphs\n"
+        "- steps: 3-6 numbered learning steps\n"
+        "- question: one reflective or practice question"
+    )
 
     response = llm.invoke([
-        SystemMessage(content="You are an AI tutor that strictly returns JSON."),
-        HumanMessage(content=prompt)
+        SystemMessage(content="You are an AI tutor. Return only valid JSON."),
+        HumanMessage(content=prompt),
     ])
-    
-    content_str = response.content
+
+    raw = response.content.strip()
+
+    # Strip markdown code fences if the LLM wraps in them anyway
+    json_match = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", raw)
+    if json_match:
+        raw = json_match.group(1)
+
+    # Fallback: find first { ... } block
+    brace_match = re.search(r"\{[\s\S]*\}", raw)
+    if brace_match:
+        raw = brace_match.group(0)
+
     try:
-        json_match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', content_str)
-        if json_match:
-            content_str = json_match.group(1)
-        parsed = json.loads(content_str.strip())
+        parsed = json.loads(raw)
         return {
             "explanation": parsed.get("explanation", ""),
             "steps": parsed.get("steps", []),
-            "question": parsed.get("question", "")
+            "question": parsed.get("question", ""),
         }
-    except Exception as e:
-        print(f"JSON Parse Error: {e}")
+    except json.JSONDecodeError as exc:
+        print(f"[BodhAI] JSON parse error: {exc}")
         return {
-            "explanation": content_str,
+            "explanation": response.content,
             "steps": [],
-            "question": "Failed to generate structured question."
+            "question": "Could not generate a structured question.",
         }
 
-workflow = StateGraph(BodhState)
-workflow.add_node("architect", architect_node)
-workflow.add_node("content", content_node)
-workflow.add_edge(START, "architect")
-workflow.add_edge("architect", "content")
-workflow.add_edge("content", END)
 
-graph = workflow.compile()
+# ── Build graph (compiled once) ───────────────────────────────
+_workflow = StateGraph(BodhState)
+_workflow.add_node("architect", architect_node)
+_workflow.add_node("content", content_node)
+_workflow.add_edge(START, "architect")
+_workflow.add_edge("architect", "content")
+_workflow.add_edge("content", END)
+
+graph = _workflow.compile()

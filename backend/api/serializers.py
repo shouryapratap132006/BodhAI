@@ -1,7 +1,18 @@
 from rest_framework import serializers
 from .models import LearningHistory
 
+
 class LearningHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = LearningHistory
-        fields = '__all__'
+        fields = [
+            "id",
+            "input_text",
+            "mode",
+            "explanation",
+            "steps",
+            "question",
+            "file_type",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
