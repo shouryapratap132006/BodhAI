@@ -4,6 +4,7 @@ from .views import (
     ConversationListView,
     ConversationDetailView,
     HistoryView,
+    HistoryDetailView,
     LearnView,
 )
 
@@ -13,7 +14,8 @@ urlpatterns = [
     path("conversations/",              ConversationListView.as_view(), name="conversations"),
     path("conversations/<int:conv_id>/", ConversationDetailView.as_view(), name="conversation-detail"),
 
-    # Legacy Phase 1/2
+    # Phase 2
     path("history/",                    HistoryView.as_view(),          name="history"),
+    path("history/<int:history_id>/",   HistoryDetailView.as_view(),    name="history-detail"),
     path("learn/",                      LearnView.as_view(),            name="learn"),
 ]

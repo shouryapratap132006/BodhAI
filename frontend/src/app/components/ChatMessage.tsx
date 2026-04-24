@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Lightbulb, Target, List, HelpCircle, CheckCircle2, XCircle, ExternalLink, Play, ChevronRight } from "lucide-react";
 import type { TurnMessage, Question, Resource, Evaluation } from "../page";
@@ -110,10 +111,105 @@ const difficultyLabel: Record<string, string> = {
   hard: "Hard", challenge: "Challenge", conceptual: "Conceptual",
 };
 
+function PlayableQuiz({ questions }: { questions: Question[] }) {
+  const [selections, setSelections] = useState<Record<number, string>>({});
+
+  if (!questions?.length) return null;
+  return (
+    <motion.section variants={blockVariants}>
+      <SectionLabel icon={<Target className="w-3.5 h-3.5" />} text="Interactive Quiz" color="text-yellow-500" />
+      <div className="space-y-4">
+        {questions.map((q, i) => {
+          const selected = selections[i];
+          const hasAnswered = selected !== undefined;
+          const isCorrect = selected === q.answer;
+
+          return (
+            <div key={i} className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-4">
+              <div className="flex items-start gap-3">
+                <span className="shrink-0 w-6 h-6 rounded-full bg-[#1a1a1a] border border-[#333] text-[11px] font-semibold text-[#888] flex items-center justify-center mt-0.5">
+                  {i + 1}
+                </span>
+                <div className="flex-1 space-y-3">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[#555]">
+                    {difficultyLabel[q.type] ?? q.type}
+                  </span>
+                  <p className="text-[14px] text-[#d1d1d6] leading-relaxed">{q.text}</p>
+                  {q.options?.length && (
+                    <ul className="space-y-2 mt-2">
+                      {q.options.map((opt, oi) => {
+                        const optionLetter = String.fromCharCode(65 + oi);
+                        const optionText = opt.replace(/^[A-Da-d]\)\s*/, "");
+                        const isThisSelected = selected === optionLetter;
+                        const isThisCorrectAnswer = q.answer === optionLetter;
+
+                        let bgClass = "bg-[#1a1a1a] border-[#2a2a2a] hover:border-yellow-500/50";
+                        let textClass = "text-[#888]";
+
+                        if (hasAnswered) {
+                          if (isThisCorrectAnswer) {
+                            bgClass = "bg-emerald-500/10 border-emerald-500/50";
+                            textClass = "text-emerald-400";
+                          } else if (isThisSelected && !isThisCorrectAnswer) {
+                            bgClass = "bg-red-500/10 border-red-500/50";
+                            textClass = "text-red-400";
+                          } else {
+                            bgClass = "bg-[#1a1a1a] border-[#2a2a2a] opacity-50";
+                          }
+                        }
+
+                        return (
+                          <li key={oi}>
+                            <button
+                              disabled={hasAnswered}
+                              onClick={() => setSelections(prev => ({ ...prev, [i]: optionLetter }))}
+                              className={`w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-all duration-200 ${bgClass}`}
+                            >
+                              <span className={`shrink-0 w-6 h-6 rounded bg-black/20 border border-white/10 text-[11px] font-semibold flex items-center justify-center ${textClass}`}>
+                                {optionLetter}
+                              </span>
+                              <span className={`text-[13px] mt-0.5 ${textClass}`}>
+                                {optionText}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  {/* Explanation / Hint after answer */}
+                  {hasAnswered && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className={`mt-4 p-3 rounded-xl border border-l-2 ${isCorrect ? 'border-emerald-500/30 bg-emerald-500/5 border-l-emerald-500' : 'border-red-500/30 bg-red-500/5 border-l-red-500'}`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        {isCorrect ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <XCircle className="w-4 h-4 text-red-400" />}
+                        <span className={`text-[12px] font-semibold uppercase tracking-wider ${isCorrect ? "text-emerald-400" : "text-red-400"}`}>
+                          {isCorrect ? "Correct!" : "Incorrect"}
+                        </span>
+                      </div>
+                      {q.hint && (
+                        <p className="text-[13px] text-[#aaa] leading-relaxed mt-2">{q.hint}</p>
+                      )}
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </motion.section>
+  );
+}
+
 function QuestionsList({ questions, responseType }: { questions: Question[]; responseType?: string }) {
   if (!questions?.length) return null;
   const sectionLabel = responseType === "homework" ? "Practice Problems" :
-                       responseType === "revise"   ? "Revision Questions" : "Quiz";
+                       responseType === "revise"   ? "Revision Questions" : "Questions";
 
   return (
     <motion.section variants={blockVariants}>
@@ -130,29 +226,16 @@ function QuestionsList({ questions, responseType }: { questions: Question[]; res
                   {difficultyLabel[q.type] ?? q.type}
                 </span>
                 <p className="text-[14px] text-[#d1d1d6] leading-relaxed">{q.text}</p>
-                {/* MCQ options */}
-                {q.options?.length && (
-                  <ul className="space-y-1.5 mt-2">
-                    {q.options.map((opt, oi) => (
-                      <li key={oi} className="flex items-start gap-2 text-[13px] text-[#888]">
-                        <span className="shrink-0 w-5 h-5 rounded bg-[#1a1a1a] border border-[#2a2a2a] text-[11px] font-semibold text-[#666] flex items-center justify-center">
-                          {String.fromCharCode(65 + oi)}
-                        </span>
-                        {opt.replace(/^[A-Da-d]\)\s*/, "")}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {/* Hint for homework */}
-                {q.hint && (
-                  <p className="text-[12px] text-yellow-500/70 mt-1">
-                    <span className="font-semibold">Hint:</span> {q.hint}
-                  </p>
-                )}
                 {/* Answer for quiz/revise */}
-                {q.answer && responseType !== "quiz" && (
+                {q.answer && (
                   <p className="text-[12px] text-emerald-400/80 mt-1">
                     <span className="font-semibold">Answer:</span> {q.answer}
+                  </p>
+                )}
+                {/* Hint for homework */}
+                {q.hint && !q.answer && (
+                  <p className="text-[12px] text-yellow-500/70 mt-1">
+                    <span className="font-semibold">Hint:</span> {q.hint}
                   </p>
                 )}
               </div>
@@ -300,7 +383,14 @@ export default function ChatMessage({ message }: Props) {
           <SolutionBlock solution={message.solution ?? ""} />
 
           {/* Questions (quiz / homework / revise) */}
-          <QuestionsList questions={message.questions ?? []} responseType={message.type} />
+          {message.type === "quiz" ? (
+            <>
+              <PlayableQuiz questions={(message.questions ?? []).filter(q => q.type === "mcq")} />
+              <QuestionsList questions={(message.questions ?? []).filter(q => q.type !== "mcq")} responseType={message.type} />
+            </>
+          ) : (
+            <QuestionsList questions={message.questions ?? []} responseType={message.type} />
+          )}
 
           {/* Student attempt + evaluation */}
           <EvaluationBlock attempt={message.student_attempt} evaluation={message.evaluation} />

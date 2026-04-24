@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import LearningHistory, Conversation, Message
+from .models import Learning, Conversation, Message
 
 
 class MessageSerializer(serializers.ModelSerializer):
@@ -53,9 +53,9 @@ class ConversationListSerializer(serializers.ModelSerializer):
         return None
 
 
-class LearningHistorySerializer(serializers.ModelSerializer):
+class LearningSerializer(serializers.ModelSerializer):
     class Meta:
-        model = LearningHistory
+        model = Learning
         fields = [
             "id", "input_text", "mode", "explanation",
             "steps", "question", "file_type", "created_at",

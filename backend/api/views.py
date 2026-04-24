@@ -13,9 +13,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import LearningHistory, Conversation, Message
+from .models import Learning, Conversation, Message
 from .serializers import (
-    LearningHistorySerializer,
+    LearningSerializer,
     ConversationSerializer,
     ConversationListSerializer,
     MessageSerializer,
@@ -231,24 +231,109 @@ class ConversationDetailView(APIView):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Legacy endpoints (Phase 1/2 compatibility)
+# Phase 2 Endpoints
 # ─────────────────────────────────────────────────────────────────────────────
 class HistoryView(APIView):
-    """Return the legacy Phase 1/2 learning history, newest first."""
+    """Return the Phase 2 learning history, newest first."""
 
     def get(self, request):
-        history = LearningHistory.objects.all().order_by("-created_at")
-        serializer = LearningHistorySerializer(history, many=True)
+        history = Learning.objects.all().order_by("-created_at")
+        serializer = LearningSerializer(history, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class HistoryDetailView(APIView):
+    """Delete a specific Phase 2 history item."""
+
+    def delete(self, request, history_id):
+        try:
+            history = Learning.objects.get(id=history_id)
+        except Learning.DoesNotExist:
+            return Response({"error": "History not found."}, status=status.HTTP_404_NOT_FOUND)
+        history.delete()
+        return Response({"deleted": True}, status=status.HTTP_200_OK)
 
 
 class LearnView(APIView):
     """
-    Legacy Phase 1/2 learn endpoint.
-    Kept for backwards compatibility — now delegates to ChatView internally.
+    Phase 2 learn endpoint.
+    Accepts text or file, processes via LangGraph, and returns {explanation, steps, question}.
     """
 
     def post(self, request):
-        # Proxy to ChatView
-        chat_view = ChatView()
-        return chat_view.post(request)
+        input_text = request.data.get("input", "").strip()
+        mode = request.data.get("mode", "balanced").strip().lower()
+        file_obj = request.FILES.get("file")
+        file_type = None
+
+        valid_modes = {"beginner", "balanced", "advanced"}
+        if mode not in valid_modes:
+            mode = "balanced"
+
+        if file_obj:
+            extracted, file_type = extract_file_content(file_obj, file_obj.name)
+            if extracted:
+                header = f"[Content extracted from uploaded {file_type.upper()} file]\n\n"
+                input_text = (
+                    header + extracted
+                    + (f"\n\nAdditional context: {input_text}" if input_text else "")
+                )
+
+        if not input_text:
+            return Response(
+                {"error": "Please provide a message or upload a file."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        initial_state = {
+            "input": input_text,
+            "mode": mode,
+            "conversation_history": [],
+            "intent": "learn_topic",
+            "architect_outline": "",
+            "refinement_pass": 0,
+            "response_type": "",
+            "explanation": "",
+            "steps": [],
+            "hint": "",
+            "solution": "",
+            "questions": [],
+            "example": "",
+            "student_attempt": "",
+            "evaluation": {},
+            "improved_explanation": "",
+            "resources": [],
+            "needs_refinement": False,
+        }
+
+        try:
+            result = graph.invoke(initial_state)
+        except Exception as exc:
+            print(f"[BodhAI] Agent pipeline error: {exc}")
+            return Response(
+                {"error": "AI pipeline failed. Please try again."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        explanation = result.get("improved_explanation", "") or result.get("explanation", "")
+        steps = result.get("steps", [])
+        question = ""
+        if result.get("questions") and len(result["questions"]) > 0:
+            question = result["questions"][0].get("text", "")
+        elif result.get("example"):
+            question = result.get("example", "")
+
+        learning_obj = Learning.objects.create(
+            input_text=request.data.get("input", "").strip() or f"[{file_type.upper()} file]",
+            mode=mode,
+            explanation=explanation,
+            steps=steps,
+            question=question,
+            file_type=file_type
+        )
+
+        return Response({
+            "explanation": explanation,
+            "steps": steps,
+            "question": question
+        }, status=status.HTTP_200_OK)

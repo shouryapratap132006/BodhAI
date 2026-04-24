@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import LearningHistory, Conversation, Message
+from .models import Learning, Conversation, Message
 
 
 # ── Conversation ──────────────────────────────────────────────────────────
@@ -30,9 +30,9 @@ class MessageAdmin(admin.ModelAdmin):
     short_input.short_description = "User Input"
 
 
-# ── Legacy ────────────────────────────────────────────────────────────────
-@admin.register(LearningHistory)
-class LearningHistoryAdmin(admin.ModelAdmin):
+# ── Phase 2 ───────────────────────────────────────────────────────────────
+@admin.register(Learning)
+class LearningAdmin(admin.ModelAdmin):
     list_display  = ("id", "mode", "file_type", "short_input", "created_at")
     list_filter   = ("mode", "file_type")
     search_fields = ("input_text", "explanation")

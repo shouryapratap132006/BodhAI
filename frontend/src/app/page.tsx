@@ -59,16 +59,18 @@ export type ConversationSummary = {
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api";
 
+const ACTION_CHIPS = [
+  { label: "Learn a topic", example: "Explain Newton's laws of motion" },
+  { label: "Solve a problem", example: "How do I solve a quadratic equation?" },
+  { label: "Quiz me", example: "Quiz me on photosynthesis" },
+  { label: "Homework", example: "Give me practice problems on integration" },
+  { label: "Revise", example: "Quick revision of World War II causes" },
+  { label: "Explain again", example: "Explain recursion in simpler terms" },
+];
+
 // ── Empty / Welcome state ──────────────────────────────────────────────────
-function EmptyState() {
-  const chips = [
-    { label: "Learn a topic", example: "Explain Newton's laws of motion" },
-    { label: "Solve a problem", example: "How do I solve a quadratic equation?" },
-    { label: "Quiz me", example: "Quiz me on photosynthesis" },
-    { label: "Homework", example: "Give me practice problems on integration" },
-    { label: "Revise", example: "Quick revision of World War II causes" },
-    { label: "Explain again", example: "Explain recursion in simpler terms" },
-  ];
+function EmptyState({ onChipClick }: { onChipClick: (text: string) => void }) {
+
 
   return (
     <motion.div
@@ -115,11 +117,12 @@ function EmptyState() {
         transition={{ delay: 0.35, duration: 0.5 }}
         className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-[560px] px-2"
       >
-        {chips.map((chip, i) => (
-          <div
+        {ACTION_CHIPS.map((chip, i) => (
+          <button
             key={i}
+            onClick={() => onChipClick(chip.example)}
             className="text-left px-4 py-3 rounded-xl border border-[#1e1e1e] bg-[#0f0f0f]
-              hover:border-orange-500/30 hover:bg-[#141414] transition-all duration-200 cursor-default group"
+              hover:border-orange-500/30 hover:bg-[#141414] transition-all duration-200 group w-full"
           >
             <p className="text-[12px] font-semibold text-orange-500/80 mb-0.5 uppercase tracking-wider">
               {chip.label}
@@ -127,7 +130,7 @@ function EmptyState() {
             <p className="text-[13px] text-[#444] group-hover:text-[#666] transition-colors leading-snug">
               {chip.example}
             </p>
-          </div>
+          </button>
         ))}
       </motion.div>
     </motion.div>
@@ -354,7 +357,13 @@ export default function Home() {
           <div className="max-w-[720px] mx-auto px-4 py-8">
             <AnimatePresence mode="wait">
               {!hasContent ? (
-                <EmptyState key="empty" />
+                <EmptyState key="empty" onChipClick={(text) => {
+                  setInput(text);
+                  const inputEl = document.querySelector('textarea');
+                  if (inputEl) {
+                    inputEl.focus();
+                  }
+                }} />
               ) : (
                 <motion.div
                   key="chat"
@@ -382,6 +391,31 @@ export default function Home() {
 
                   {/* Typing indicator */}
                   {loading && <TypingIndicator />}
+
+                  {/* Quick Actions (visible when chat has content) */}
+                  {!loading && turns.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-6 flex flex-wrap gap-2"
+                    >
+                      {ACTION_CHIPS.map((chip, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            setInput(chip.example);
+                            const inputEl = document.querySelector('textarea');
+                            if (inputEl) {
+                              inputEl.focus();
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-full border border-[#242424] bg-[#111] text-[12px] text-[#888] hover:text-[#d1d1d6] hover:bg-[#1a1a1a] hover:border-orange-500/30 transition-all duration-200"
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
 
                   <div ref={chatEndRef} />
                 </motion.div>

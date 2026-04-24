@@ -207,20 +207,19 @@ def content_node(state: BodhState) -> dict:
         ),
         "solve_question": (
             "solve",
-            '{"response_type":"solve","hint":"...","explanation":"...","steps":["..."],'
+            '{"response_type":"solve","hint":"...","steps":["..."],'
             '"solution":"...","resources":[{"title":"...","type":"article|video","link":"..."}]}'
         ),
         "quiz_me": (
             "quiz",
-            '{"response_type":"quiz","explanation":"brief intro...","questions":['
-            '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"A"},'
-            '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"B"},'
-            '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"C"},'
+            '{"response_type":"quiz","questions":['
+            '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"A","hint":"explanation of answer..."},'
+            '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"B","hint":"explanation of answer..."},'
             '{"type":"short","text":"...","answer":"..."}]}'
         ),
         "homework": (
             "homework",
-            '{"response_type":"homework","explanation":"context note...","questions":['
+            '{"response_type":"homework","questions":['
             '{"type":"easy","text":"...","hint":"..."},'
             '{"type":"medium","text":"...","hint":"..."},'
             '{"type":"hard","text":"...","hint":"..."},'
@@ -228,7 +227,7 @@ def content_node(state: BodhState) -> dict:
         ),
         "revise": (
             "revise",
-            '{"response_type":"revise","explanation":"quick recap...","steps":["key point..."],'
+            '{"response_type":"revise","steps":["key point..."],'
             '"questions":[{"type":"conceptual","text":"..."},{"type":"conceptual","text":"..."}]}'
         ),
         "explain_again": (

@@ -67,8 +67,8 @@ class Message(models.Model):
         return f"[{self.conversation_id}] {self.intent}: {self.user_input[:50]}"
 
 
-# Keep LearningHistory for backwards compatibility (Phase 1/2 data)
-class LearningHistory(models.Model):
+# Learning model for Phase 2 strict requirements
+class Learning(models.Model):
     MODE_CHOICES = [
         ('beginner', 'Beginner'),
         ('balanced', 'Balanced'),
