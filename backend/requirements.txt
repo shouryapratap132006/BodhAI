@@ -1,0 +1,73 @@
+# BodhAI Backend — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# ── Django Core ────────────────────────────────────────────────
+Django==4.2.30
+asgiref==3.11.1
+sqlparse==0.5.5
+django-cors-headers==4.9.0
+djangorestframework==3.16.1
+
+# ── Environment & Config ───────────────────────────────────────
+python-dotenv==1.2.1
+
+# ── LLM / AI ──────────────────────────────────────────────────
+groq==0.37.1
+langchain==0.3.28
+langchain-core==0.3.84
+langchain-groq==0.3.8
+langchain-text-splitters==0.3.11
+langgraph==0.6.11
+langgraph-checkpoint==2.1.2
+langgraph-prebuilt==0.6.5
+langgraph-sdk==0.2.9
+langsmith==0.4.37
+
+# ── Document / File Parsing ────────────────────────────────────
+PyMuPDF==1.26.5           # PDF extraction (fitz)
+python-pptx==1.0.2        # PPTX extraction
+pillow==11.3.0            # Image handling
+lxml==6.1.0               # XML parsing (used by python-pptx)
+xlsxwriter==3.2.9         # Excel export
+
+# ── HTTP / Networking ──────────────────────────────────────────
+httpx==0.28.1
+httpcore==1.0.9
+requests==2.32.5
+requests-toolbelt==1.0.0
+certifi==2026.2.25
+charset-normalizer==3.4.7
+idna==3.12
+urllib3==2.6.3
+
+# ── Data Validation ───────────────────────────────────────────
+pydantic==2.13.3
+pydantic_core==2.46.3
+annotated-types==0.7.0
+
+# ── Serialization / Utils ─────────────────────────────────────
+orjson==3.11.5
+ormsgpack==1.11.0
+jsonpatch==1.33
+jsonpointer==3.0.0
+PyYAML==6.0.3
+packaging==25.0
+
+# ── Async / Concurrency ───────────────────────────────────────
+anyio==4.12.1
+async-timeout==4.0.3
+sniffio==1.3.1
+exceptiongroup==1.3.1
+h11==0.16.0
+
+# ── Database ──────────────────────────────────────────────────
+SQLAlchemy==2.0.49
+
+# ── Misc ──────────────────────────────────────────────────────
+tenacity==9.1.2
+distro==1.9.0
+typing_extensions==4.15.0
+typing-inspection==0.4.2
+uuid_utils==0.14.1
+xxhash==3.6.0
+zstandard==0.25.0

@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+/* ── Design Tokens ───────────────────────────────────────────── */
+:root {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-input: #181818;
+  --bg-hover: #1e1e1e;
+  --border: #242424;
+  --border-subtle: #1a1a1a;
+
+  --text-primary: #ececf1;
+  --text-secondary: #8e8e9a;
+  --text-muted: #4a4a58;
+
+  --orange-500: #f97316;
+  --orange-400: #fb923c;
+  --orange-glow: rgba(249, 115, 22, 0.15);
+
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+}
+
+/* ── Base ────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2a transparent;
+}
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+/* ── Textarea auto-resize ────────────────────────────────────── */
+textarea {
+  field-sizing: content;
+}
+
+/* ── Custom selection ────────────────────────────────────────── */
+::selection {
+  background: rgba(249, 115, 22, 0.25);
+  color: #fff;
+}
+
+/* ── Orange glow keyframe ────────────────────────────────────── */
+@keyframes glow-pulse {
+  0%, 100% { text-shadow: 0 0 20px rgba(249, 115, 22, 0.3), 0 0 40px rgba(249, 115, 22, 0.1); }
+  50%       { text-shadow: 0 0 30px rgba(249, 115, 22, 0.5), 0 0 60px rgba(249, 115, 22, 0.2); }
+}
+
+.glow-text {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* ── Fade-in slide-up utility ────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up {
+  animation: fade-up 0.5s ease-out forwards;
+}
+
+/* ── Sidebar item active state ───────────────────────────────── */
+.sidebar-item-active {
+  background: rgba(249, 115, 22, 0.08);
+  color: var(--orange-400);
+}
+
+/* ── Input focus ring ────────────────────────────────────────── */
+.input-box {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input-box:focus-within {
+  border-color: rgba(249, 115, 22, 0.35);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.06), 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Response section animations ─────────────────────────────── */
+.response-block {
+  animation: fade-up 0.4s ease-out both;
+}
+.response-block:nth-child(2) { animation-delay: 0.08s; }
+.response-block:nth-child(3) { animation-delay: 0.16s; }
