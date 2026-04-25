@@ -76,5 +76,5 @@ gunicorn==21.2.0
 
 
 dj-database-url
-
+duckduckgo-search
 psycopg2-binary
