@@ -45,14 +45,7 @@ def _build_history(conversation: Conversation) -> list:
         assistant_content = msg.explanation or msg.solution or ""
         if msg.hint:
             assistant_content = f"Hint: {msg.hint}\n\n{assistant_content}"
-            
-        if msg.questions:
-            # Include the questions asked by the AI so it remembers what it asked the user!
-            q_texts = [q.get("text", "") for q in msg.questions if isinstance(q, dict) and q.get("text")]
-            if q_texts:
-                assistant_content += "\nQuestions asked:\n" + "\n".join(q_texts)
-                
-        history.append({"role": "assistant", "content": assistant_content[:1500]})
+        history.append({"role": "assistant", "content": assistant_content[:600]})
     return history
 
 

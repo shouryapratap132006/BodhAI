@@ -70,7 +70,6 @@ const ACTION_CHIPS = [
   { label: "Learn a topic", example: "Explain Newton's laws of motion" },
   { label: "Solve a problem", example: "How do I solve a quadratic equation?" },
   { label: "Quiz me", example: "Quiz me on photosynthesis" },
-  { label: "Test me", example: "Test me on this topic with a hard problem" },
   { label: "Homework", example: "Give me practice problems on integration" },
   { label: "Revise", example: "Quick revision of World War II causes" },
   { label: "Explain again", example: "Explain recursion in simpler terms" },
@@ -473,10 +472,10 @@ export default function Home() {
       </div>
 
       {/* Learning Dashboard Modal */}
-      <LearningDashboard
-        isOpen={dashboardOpen}
-        onClose={() => setDashboardOpen(false)}
-        apiUrl={API_URL}
+      <LearningDashboard 
+        isOpen={dashboardOpen} 
+        onClose={() => setDashboardOpen(false)} 
+        apiUrl={API_URL} 
       />
     </div>
   );

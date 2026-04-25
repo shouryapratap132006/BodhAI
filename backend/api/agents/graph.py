@@ -176,12 +176,10 @@ def intent_node(state: BodhState) -> dict:
         f"{history_text}\n\n"
         "New user message:\n"
         f"{state.get('input', '')}\n\n"
-        f"Active Teaching Mode: {state.get('teaching_mode', 'learn')}\n\n"
         "Classify the intent into EXACTLY ONE of:\n"
         "  learn_topic     – wants to learn/understand a concept\n"
-        "  solve_question  – wants help solving a problem, OR is asking for the solution/answer to a question you just asked them\n"
+        "  solve_question  – wants help solving a problem/question\n"
         "  quiz_me         – wants to be tested (MCQs, questions)\n"
-        "  test_me         – wants a single challenge problem/question to solve with hints and solution (PREFER THIS IF Active Teaching Mode is 'test')\n"
         "  homework        – wants practice problems / assignments\n"
         "  revise          – wants a quick revision/recap\n"
         "  explain_again   – wants a simpler or deeper re-explanation\n"
@@ -194,12 +192,7 @@ def intent_node(state: BodhState) -> dict:
     ])
     parsed = _safe_json(resp.content)
     intent = parsed.get("intent", "learn_topic")
-    
-    # Force 'test_me' if we are in 'test' mode and it's a general topic request
-    if state.get("teaching_mode") == "test" and intent in ["learn_topic", "quiz_me"]:
-        intent = "test_me"
-        
-    valid = {"learn_topic", "solve_question", "quiz_me", "test_me", "homework", "revise", "explain_again", "get_resources"}
+    valid = {"learn_topic", "solve_question", "quiz_me", "homework", "revise", "explain_again", "get_resources"}
     if intent not in valid:
         intent = "learn_topic"
         
@@ -222,7 +215,6 @@ def architect_node(state: BodhState) -> dict:
         "learn_topic":    "Create a structured concept outline with key sub-topics.",
         "solve_question": "Break the problem into solvable sub-steps. Identify the core concept tested.",
         "quiz_me":        "Identify 3-5 testable concepts worth quizzing on.",
-        "test_me":        "Formulate one single, challenging problem to test the user's deep understanding.",
         "homework":       "Identify 4-6 concepts of increasing difficulty suitable for practice.",
         "revise":         "List 4-6 key revision points or common pitfalls.",
         "explain_again":  "Identify the concept that needs re-explanation and simplest analogies.",
@@ -291,10 +283,6 @@ def content_node(state: BodhState) -> dict:
             '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"B","hint":"explanation of answer..."},'
             '{"type":"short","text":"...","answer":"..."}],"next_recommended_topic":"...","topic_progress":{"accuracy":60,"level":"medium"}}'
         ),
-        "test_me": (
-            "solve",
-            '{"response_type":"solve","explanation":"Here is a challenge for you...","questions":[{"type":"conceptual","text":"[The Challenge Question]"}],"hint_levels":["Hint 1...","Hint 2...","Almost there..."],"steps":["Step 1...","Step 2..."],"solution":"[Full Detailed Solution]","next_recommended_topic":"...","topic_progress":{"accuracy":60,"level":"medium"}}'
-        ),
         "homework": (
             "homework",
             '{"response_type":"homework","questions":['
@@ -340,7 +328,7 @@ def content_node(state: BodhState) -> dict:
         "- explanation: 2-4 paragraphs (ONLY IF teaching_mode is 'learn')\n"
         "- steps: 3-6 actionable steps\n"
         "- For resources: Provide real links to Khan Academy, Wikipedia, or YouTube only.\n"
-        "- Be context-aware of the conversation history. If the user is asking for the solution to a question YOU just asked them, provide the exact solution instead of generating new concepts!"
+        "- Be context-aware of the conversation history"
     )
 
     resp = llm.invoke([

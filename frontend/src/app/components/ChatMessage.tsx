@@ -9,23 +9,23 @@ interface Props { message: TurnMessage; }
 
 const blockVariants = {
   hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.38, ease: "easeOut" as const } },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.38, ease: "easeOut" as const } },
 };
 
 const containerVariants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.08 } },
+  show:   { transition: { staggerChildren: 0.08 } },
 };
 
 // ── Intent badge ───────────────────────────────────────────────────────────
 const intentConfig: Record<string, { label: string; color: string }> = {
-  learn_topic: { label: "📖 Learn", color: "text-blue-400   bg-blue-400/10   border-blue-400/20" },
-  solve_question: { label: "🔍 Solve", color: "text-purple-400 bg-purple-400/10 border-purple-400/20" },
-  quiz_me: { label: "🎯 Quiz", color: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" },
-  homework: { label: "📝 Homework", color: "text-green-400  bg-green-400/10  border-green-400/20" },
-  revise: { label: "⚡ Revise", color: "text-cyan-400   bg-cyan-400/10   border-cyan-400/20" },
-  explain_again: { label: "🔄 Re-explain", color: "text-orange-400 bg-orange-400/10 border-orange-400/20" },
-  get_resources: { label: "📚 Resources", color: "text-pink-400   bg-pink-400/10   border-pink-400/20" },
+  learn_topic:    { label: "📖 Learn",         color: "text-blue-400   bg-blue-400/10   border-blue-400/20"    },
+  solve_question: { label: "🔍 Solve",         color: "text-purple-400 bg-purple-400/10 border-purple-400/20" },
+  quiz_me:        { label: "🎯 Quiz",          color: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" },
+  homework:       { label: "📝 Homework",      color: "text-green-400  bg-green-400/10  border-green-400/20"  },
+  revise:         { label: "⚡ Revise",        color: "text-cyan-400   bg-cyan-400/10   border-cyan-400/20"   },
+  explain_again:  { label: "🔄 Re-explain",    color: "text-orange-400 bg-orange-400/10 border-orange-400/20" },
+  get_resources:  { label: "📚 Resources",     color: "text-pink-400   bg-pink-400/10   border-pink-400/20"   },
 };
 
 // ── Section label ──────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ function StepsList({ steps }: { steps: string[] }) {
 // ── Hint block (Interactive) ────────────────────────────────────────────────
 function InteractiveHintBlock({ hints, singleHint }: { hints?: string[]; singleHint?: string }) {
   const [currentHint, setCurrentHint] = useState(0);
-
+  
   const allHints = hints?.length ? hints : (singleHint ? [singleHint] : []);
   if (!allHints.length) return null;
 
@@ -159,12 +159,12 @@ function ExampleBlock({ example }: { example: string }) {
 
 // ── Questions (quiz / homework / revise) ───────────────────────────────────
 const difficultyColors: Record<string, string> = {
-  mcq: "border-yellow-500/30 bg-yellow-500/5",
-  short: "border-cyan-500/30   bg-cyan-500/5",
-  easy: "border-emerald-500/30 bg-emerald-500/5",
-  medium: "border-blue-500/30   bg-blue-500/5",
-  hard: "border-orange-500/30 bg-orange-500/5",
-  challenge: "border-red-500/30    bg-red-500/5",
+  mcq:        "border-yellow-500/30 bg-yellow-500/5",
+  short:      "border-cyan-500/30   bg-cyan-500/5",
+  easy:       "border-emerald-500/30 bg-emerald-500/5",
+  medium:     "border-blue-500/30   bg-blue-500/5",
+  hard:       "border-orange-500/30 bg-orange-500/5",
+  challenge:  "border-red-500/30    bg-red-500/5",
   conceptual: "border-purple-500/30 bg-purple-500/5",
 };
 const difficultyLabel: Record<string, string> = {
@@ -277,7 +277,7 @@ function PlayableQuiz({ questions }: { questions: Question[] }) {
 function QuestionsList({ questions, responseType }: { questions: Question[]; responseType?: string }) {
   if (!questions?.length) return null;
   const sectionLabel = responseType === "homework" ? "Practice Problems" :
-    responseType === "revise" ? "Revision Questions" : "Questions";
+                       responseType === "revise"   ? "Revision Questions" : "Questions";
 
   return (
     <motion.section variants={blockVariants}>
@@ -394,7 +394,7 @@ function ResourcesList({ resources }: { resources: Resource[] }) {
         {resources.map((r, i) => {
           let href = typeof r.link === "string" ? r.link : (typeof (r as any).url === "string" ? (r as any).url : "#");
           if (typeof href !== "string") href = "#";
-
+          
           return (
             <a
               key={i}
