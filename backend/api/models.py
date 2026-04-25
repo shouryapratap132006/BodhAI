@@ -15,6 +15,31 @@ class Conversation(models.Model):
         return f"[{self.id}] {self.title or 'Untitled'}"
 
 
+class LearningPath(models.Model):
+    user_id = models.CharField(max_length=255, blank=True, null=True)
+    main_topic = models.CharField(max_length=255)
+    topics = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Path: {self.main_topic}"
+
+
+class TopicProgress(models.Model):
+    user_id = models.CharField(max_length=255, blank=True, null=True)
+    topic = models.CharField(max_length=255)
+    attempts = models.IntegerField(default=0)
+    correct_answers = models.IntegerField(default=0)
+    accuracy = models.FloatField(default=0.0)
+    difficulty_level = models.CharField(max_length=20, default="easy")
+    weak_areas = models.JSONField(default=list)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Progress: {self.topic} ({self.accuracy}%)"
+
+
+
 class Message(models.Model):
     """
     A single turn in a conversation.
@@ -61,6 +86,12 @@ class Message(models.Model):
     improved_explanation = models.TextField(blank=True)
     resources            = models.JSONField(default=list)
     lesson_structure     = models.JSONField(default=dict)
+
+    # Phase 6 Additions
+    hint_levels            = models.JSONField(default=list)
+    mistake_analysis       = models.JSONField(default=dict)
+    next_recommended_topic = models.CharField(max_length=255, blank=True)
+    topic_progress         = models.JSONField(default=dict)
 
     created_at = models.DateTimeField(auto_now_add=True)
 

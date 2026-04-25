@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Learning, Conversation, Message
+from .models import Learning, Conversation, Message, LearningPath, TopicProgress
 
 
 class MessageSerializer(serializers.ModelSerializer):
@@ -24,6 +24,10 @@ class MessageSerializer(serializers.ModelSerializer):
             "improved_explanation",
             "resources",
             "lesson_structure",
+            "hint_levels",
+            "mistake_analysis",
+            "next_recommended_topic",
+            "topic_progress",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
@@ -62,3 +66,17 @@ class LearningSerializer(serializers.ModelSerializer):
             "steps", "question", "file_type", "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+class LearningPathSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LearningPath
+        fields = ["id", "user_id", "main_topic", "topics", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
+class TopicProgressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TopicProgress
+        fields = ["id", "user_id", "topic", "attempts", "correct_answers", "accuracy", "difficulty_level", "weak_areas", "last_updated"]
+        read_only_fields = ["id", "last_updated"]

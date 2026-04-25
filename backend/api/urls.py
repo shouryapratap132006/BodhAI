@@ -6,6 +6,8 @@ from .views import (
     HistoryView,
     HistoryDetailView,
     LearnView,
+    LearningPathView,
+    TopicProgressView,
 )
 
 urlpatterns = [
@@ -18,4 +20,8 @@ urlpatterns = [
     path("history/",                    HistoryView.as_view(),          name="history"),
     path("history/<int:history_id>/",   HistoryDetailView.as_view(),    name="history-detail"),
     path("learn/",                      LearnView.as_view(),            name="learn"),
+
+    # Phase 6
+    path("learning-path/",              LearningPathView.as_view(),     name="learning-path"),
+    path("topic-progress/",             TopicProgressView.as_view(),    name="topic-progress"),
 ]

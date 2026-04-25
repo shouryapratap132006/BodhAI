@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, BookOpen, Clock, X, Trash2, MessageSquare } from "lucide-react";
+import { Plus, BookOpen, Clock, X, Trash2, MessageSquare, TrendingUp } from "lucide-react";
 import type { ConversationSummary, Mode } from "../page";
 
 const intentEmoji: Record<string, string> = {
@@ -23,6 +23,7 @@ interface SidebarProps {
   onDelete: (id: number) => void;
   isOpen: boolean;
   onClose: () => void;
+  onOpenDashboard: () => void;
 }
 
 function timeAgo(dateStr: string): string {
@@ -37,7 +38,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function Sidebar({
-  conversations, activeId, onSelect, onNewChat, onDelete, isOpen, onClose,
+  conversations, activeId, onSelect, onNewChat, onDelete, isOpen, onClose, onOpenDashboard
 }: SidebarProps) {
   return (
     <>
@@ -168,12 +169,12 @@ export default function Sidebar({
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-[#1a1a1a]">
-          <div className="flex items-center gap-2">
-            <Clock className="w-3 h-3 text-[#2a2a2a]" />
-            <p className="text-[10px] text-[#333]">
-              {conversations.length} conversation{conversations.length !== 1 ? "s" : ""}
-            </p>
-          </div>
+          <button onClick={onOpenDashboard} className="w-full flex items-center justify-between group py-1">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-orange-500" />
+              <p className="text-[12px] font-medium text-[#ccc] group-hover:text-white transition-colors">Learning Dashboard</p>
+            </div>
+          </button>
         </div>
       </aside>
     </>

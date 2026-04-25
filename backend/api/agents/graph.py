@@ -28,6 +28,7 @@ class BodhState(TypedDict):
     # Inputs
     input: str
     mode: str                               # beginner | balanced | advanced
+    teaching_mode: str                      # learn | test
     conversation_history: List[dict]        # [{"role": "user"|"assistant", "content": "..."}]
 
     # Intermediate
@@ -49,6 +50,10 @@ class BodhState(TypedDict):
     resources: List[dict]                   # [{title, type, link}]
     lesson_structure: dict
     needs_refinement: bool
+    hint_levels: List[str]
+    mistake_analysis: dict
+    next_recommended_topic: str
+    topic_progress: dict
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -190,6 +195,12 @@ def intent_node(state: BodhState) -> dict:
     valid = {"learn_topic", "solve_question", "quiz_me", "homework", "revise", "explain_again", "get_resources"}
     if intent not in valid:
         intent = "learn_topic"
+        
+    # Phase 6: If the user is in "Test Me" mode and asks about a topic, force the intent to "quiz_me"
+    teaching_mode = state.get("teaching_mode", "learn")
+    if teaching_mode == "test" and intent == "learn_topic":
+        intent = "quiz_me"
+        
     return {"intent": intent, "refinement_pass": 0}
 
 
@@ -258,19 +269,19 @@ def content_node(state: BodhState) -> dict:
             '{"response_type":"learn",'
             '"lesson_structure":{"attention":"...","objectives":"...","prior_knowledge":"...","content":"...","guided_practice":"...","assessment":"...","feedback":"...","improvement":"..."},'
             '"explanation":"...","steps":["..."],'
-            '"example":"...","question":"...","resources":[{"title":"...","type":"article|video","link":"..."}]}'
+            '"example":"...","question":"...","next_recommended_topic":"...","topic_progress":{"accuracy":80,"level":"medium"},"resources":[{"title":"...","type":"article|video","link":"..."}]}'
         ),
         "solve_question": (
             "solve",
-            '{"response_type":"solve","hint":"...","steps":["..."],'
-            '"solution":"...","resources":[{"title":"...","type":"article|video","link":"..."}]}'
+            '{"response_type":"solve","hint_levels":["hint 1...","hint 2...","almost solution..."],"steps":["..."],'
+            '"solution":"...","mistake_analysis":{"mistake":"...","why_wrong":"...","correct_approach":"...","tip":"..."},"next_recommended_topic":"...","topic_progress":{"accuracy":60,"level":"medium"},"resources":[{"title":"...","type":"article|video","link":"..."}]}'
         ),
         "quiz_me": (
             "quiz",
-            '{"response_type":"quiz","questions":['
+            '{"response_type":"quiz","explanation":"Brief intro to the test...","questions":['
             '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"A","hint":"explanation of answer..."},'
             '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"B","hint":"explanation of answer..."},'
-            '{"type":"short","text":"...","answer":"..."}]}'
+            '{"type":"short","text":"...","answer":"..."}],"next_recommended_topic":"...","topic_progress":{"accuracy":60,"level":"medium"}}'
         ),
         "homework": (
             "homework",
@@ -303,17 +314,20 @@ def content_node(state: BodhState) -> dict:
         f"### Conversation History:\n{history_text}\n\n"
         f"### Current Input:\n{state.get('input', '')}\n\n"
         f"### Learning Outline:\n{state.get('architect_outline', '')}\n\n"
-        f"### Learning Mode: {mode}\n{mode_instr}\n\n"
+        f"### Learning Mode: {mode} (Teaching mode: {state.get('teaching_mode', 'learn')})\n{mode_instr}\n\n"
         f"### Intent: {intent}\n"
         + refine_ctx
         + "\n\n### Output Format (return ONLY this JSON, no markdown):\n"
         + output_template
         + "\n\nRules:\n"
-        "- For 'learn_topic', populate 'lesson_structure' acting as an Autonomous Instructional Designer, aligning with Gagne's/Merrill's principles.\n"
-        "- explanation: 2-4 paragraphs, engaging and clear\n"
+        "- For 'learn_topic', populate 'lesson_structure' acting as an Autonomous Instructional Designer.\n"
+        "- If teaching_mode is 'test', YOU MUST NOT provide a full explanation or solution. You MUST only provide questions to quiz the user, or progressive hint_levels. Your 'explanation' field should just be a brief intro like 'Let's test your knowledge!'\n"
+        "- If the user provides a wrong answer or struggles, populate 'mistake_analysis'.\n"
+        "- If teaching_mode is 'test' or intent is 'solve_question', prefer giving progressive 'hint_levels' instead of direct answers.\n"
+        "- Always populate 'topic_progress' (estimate accuracy 0-100 and level easy/medium/hard) and 'next_recommended_topic'.\n"
+        "- explanation: 2-4 paragraphs (ONLY IF teaching_mode is 'learn')\n"
         "- steps: 3-6 actionable steps\n"
-        "- For resources: NEVER output fake links to bodhai.com. Provide real links to Khan Academy, Wikipedia, or YouTube only.\n"
-        "- Keep responses focused and token-efficient\n"
+        "- For resources: Provide real links to Khan Academy, Wikipedia, or YouTube only.\n"
         "- Be context-aware of the conversation history"
     )
 
@@ -369,6 +383,10 @@ def content_node(state: BodhState) -> dict:
         "example":        parsed.get("example", ""),
         "resources":      final_resources,
         "lesson_structure": parsed.get("lesson_structure", {}),
+        "hint_levels":    parsed.get("hint_levels", []),
+        "mistake_analysis": parsed.get("mistake_analysis", {}),
+        "next_recommended_topic": parsed.get("next_recommended_topic", ""),
+        "topic_progress": parsed.get("topic_progress", {}),
     }
 
 

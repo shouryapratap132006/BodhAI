@@ -19,9 +19,14 @@ from .serializers import (
     ConversationSerializer,
     ConversationListSerializer,
     MessageSerializer,
+    LearningPathSerializer,
+    TopicProgressSerializer,
 )
+from .models import Learning, Conversation, Message, LearningPath, TopicProgress
 from .utils.extraction import extract_file_content
 from .agents.graph import graph
+from langchain_groq import ChatGroq
+from langchain_core.messages import SystemMessage, HumanMessage
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -57,6 +62,7 @@ class ChatView(APIView):
     def post(self, request):
         input_text: str = request.data.get("input", "").strip()
         mode: str       = request.data.get("mode", "balanced").strip().lower()
+        teaching_mode: str = request.data.get("teaching_mode", "learn").strip().lower()
         conv_id         = request.data.get("conversation_id")   # None → new conversation
         file_obj        = request.FILES.get("file")
         file_type       = None
@@ -104,6 +110,7 @@ class ChatView(APIView):
         initial_state = {
             "input":                input_text,
             "mode":                 mode,
+            "teaching_mode":        teaching_mode,
             "conversation_history": conversation_history,
             "intent":               "",
             "architect_outline":    "",
@@ -120,6 +127,10 @@ class ChatView(APIView):
             "improved_explanation": "",
             "resources":            [],
             "needs_refinement":     False,
+            "hint_levels":          [],
+            "mistake_analysis":     {},
+            "next_recommended_topic": "",
+            "topic_progress":       {},
         }
 
         try:
@@ -168,6 +179,10 @@ class ChatView(APIView):
             improved_explanation = improved_explanation,
             resources            = result.get("resources", []),
             lesson_structure     = result.get("lesson_structure", {}),
+            hint_levels          = result.get("hint_levels", []),
+            mistake_analysis     = result.get("mistake_analysis", {}),
+            next_recommended_topic = result.get("next_recommended_topic", ""),
+            topic_progress       = result.get("topic_progress", {}),
         )
 
         # Update conversation timestamp
@@ -192,6 +207,10 @@ class ChatView(APIView):
                 "improved_explanation": improved_explanation,
                 "resources":          result.get("resources", []),
                 "lesson_structure":   result.get("lesson_structure", {}),
+                "hint_levels":        result.get("hint_levels", []),
+                "mistake_analysis":   result.get("mistake_analysis", {}),
+                "next_recommended_topic": result.get("next_recommended_topic", ""),
+                "topic_progress":     result.get("topic_progress", {}),
             },
             status=status.HTTP_200_OK,
         )
@@ -339,3 +358,88 @@ class LearnView(APIView):
             "steps": steps,
             "question": question
         }, status=status.HTTP_200_OK)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 6 Endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+class LearningPathView(APIView):
+    def get(self, request):
+        user_id = request.query_params.get("user_id", "default")
+        paths = LearningPath.objects.filter(user_id=user_id).order_by("-created_at")
+        serializer = LearningPathSerializer(paths, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        main_topic = request.data.get("main_topic")
+        user_id = request.data.get("user_id", "default")
+
+        if not main_topic:
+            return Response({"error": "main_topic is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Generate Learning Path using Groq
+        try:
+            llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2)
+            prompt = (
+                f"Create a structured learning path for the topic: '{main_topic}'.\n"
+                "Return the learning path as a plain list of subtopics in a logical learning progression, from basics to advanced.\n"
+                "Each topic should build on the previous knowledge.\n"
+                "Do NOT include any extra text. Return ONLY valid JSON in the exact format: "
+                '{"topics": ["Topic 1", "Topic 2", "Topic 3", ...]}'
+            )
+            resp = llm.invoke([
+                SystemMessage(content="You are an expert curriculum designer. Return strictly valid JSON."),
+                HumanMessage(content=prompt)
+            ])
+            import json, re
+            raw = resp.content
+            m = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", raw)
+            if m: raw = m.group(1)
+            parsed = json.loads(raw)
+            topics = parsed.get("topics", [])
+        except Exception as e:
+            print(f"LearningPath gen error: {e}")
+            topics = [f"{main_topic} Basics", f"Intermediate {main_topic}", f"Advanced {main_topic}"]
+
+        lp = LearningPath.objects.create(
+            user_id=user_id,
+            main_topic=main_topic,
+            topics=topics
+        )
+        serializer = LearningPathSerializer(lp)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class TopicProgressView(APIView):
+    def get(self, request):
+        user_id = request.query_params.get("user_id", "default")
+        progress = TopicProgress.objects.filter(user_id=user_id)
+        serializer = TopicProgressSerializer(progress, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        # Allow frontend to manually update topic progress
+        user_id = request.data.get("user_id", "default")
+        topic = request.data.get("topic")
+        correct = request.data.get("correct", False)
+
+        if not topic:
+            return Response({"error": "topic is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        progress, created = TopicProgress.objects.get_or_create(user_id=user_id, topic=topic)
+        progress.attempts += 1
+        if correct:
+            progress.correct_answers += 1
+        
+        progress.accuracy = (progress.correct_answers / progress.attempts) * 100
+        
+        if progress.accuracy < 50:
+            progress.difficulty_level = "easy"
+        elif progress.accuracy < 80:
+            progress.difficulty_level = "medium"
+        else:
+            progress.difficulty_level = "hard"
+
+        progress.save()
+        serializer = TopicProgressSerializer(progress)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+

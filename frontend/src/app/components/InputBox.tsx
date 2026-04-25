@@ -10,6 +10,8 @@ interface InputBoxProps {
   setInput: (v: string) => void;
   mode: Mode;
   setMode: (m: Mode) => void;
+  teachingMode: "learn" | "test";
+  setTeachingMode: (m: "learn" | "test") => void;
   file: File | null;
   setFile: (f: File | null) => void;
   loading: boolean;
@@ -39,7 +41,7 @@ const QUICK_PROMPTS = [
 ];
 
 export default function InputBox({
-  input, setInput, mode, setMode, file, setFile, loading, onSubmit, compact = false,
+  input, setInput, mode, setMode, teachingMode, setTeachingMode, file, setFile, loading, onSubmit, compact = false,
 }: InputBoxProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canSubmit = (input.trim().length > 0 || file !== null) && !loading;
@@ -127,6 +129,22 @@ export default function InputBox({
         <div className="flex items-center justify-between px-3 pb-3 pt-0">
           {/* Left: mode + upload */}
           <div className="flex items-center gap-2">
+            {/* Teaching Mode Toggle */}
+            <div className="flex items-center gap-1 rounded-lg bg-[#0d0d0d] border border-[#1e1e1e] p-0.5">
+              <button
+                onClick={() => setTeachingMode("learn")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all duration-150 ${teachingMode === "learn" ? "bg-[#1a1a1a] text-white border border-[#2a2a2a]" : "text-[#4a4a4a] hover:text-[#888]"}`}
+              >
+                Teach Me
+              </button>
+              <button
+                onClick={() => setTeachingMode("test")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all duration-150 ${teachingMode === "test" ? "bg-[#1a1a1a] text-white border border-[#2a2a2a]" : "text-[#4a4a4a] hover:text-[#888]"}`}
+              >
+                Test Me
+              </button>
+            </div>
+            
             {/* Mode selector */}
             <div className="flex items-center gap-1 rounded-lg bg-[#0d0d0d] border border-[#1e1e1e] p-0.5">
               {MODES.map((m) => (

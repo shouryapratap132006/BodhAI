@@ -6,6 +6,7 @@ import { Menu, BookOpen } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import InputBox from "./components/InputBox";
 import ChatMessage from "./components/ChatMessage";
+import LearningDashboard from "./components/LearningDashboard";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 export type Intent =
@@ -47,6 +48,10 @@ export type TurnMessage = {
   improved_explanation?: string;
   resources?: Resource[];
   lesson_structure?: Record<string, any>;
+  hint_levels?: string[];
+  mistake_analysis?: Record<string, any>;
+  next_recommended_topic?: string;
+  topic_progress?: Record<string, any>;
 };
 
 export type ConversationSummary = {
@@ -165,6 +170,7 @@ function TypingIndicator() {
 export default function Home() {
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<Mode>("balanced");
+  const [teachingMode, setTeachingMode] = useState<"learn" | "test">("learn");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -176,6 +182,7 @@ export default function Home() {
   // Sidebar conversations list
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -217,6 +224,7 @@ export default function Home() {
     const formData = new FormData();
     formData.append("input", input);
     formData.append("mode", mode);
+    formData.append("teaching_mode", teachingMode);
     if (activeConvId) formData.append("conversation_id", String(activeConvId));
     if (file) formData.append("file", file);
 
@@ -246,6 +254,10 @@ export default function Home() {
         improved_explanation: data.improved_explanation,
         resources: data.resources,
         lesson_structure: data.lesson_structure,
+        hint_levels: data.hint_levels,
+        mistake_analysis: data.mistake_analysis,
+        next_recommended_topic: data.next_recommended_topic,
+        topic_progress: data.topic_progress,
       };
       setTurns(prev => [...prev, assistantMessage]);
       loadConversations();
@@ -293,6 +305,10 @@ export default function Home() {
           improved_explanation: msg.improved_explanation,
           resources: msg.resources,
           lesson_structure: msg.lesson_structure,
+          hint_levels: msg.hint_levels,
+          mistake_analysis: msg.mistake_analysis,
+          next_recommended_topic: msg.next_recommended_topic,
+          topic_progress: msg.topic_progress,
         });
       }
       setTurns(rebuilt);
@@ -337,6 +353,7 @@ export default function Home() {
         onDelete={handleDeleteConversation}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onOpenDashboard={() => setDashboardOpen(true)}
       />
 
       {/* ── Main area ── */}
@@ -442,6 +459,8 @@ export default function Home() {
               setInput={setInput}
               mode={mode}
               setMode={setMode}
+              teachingMode={teachingMode}
+              setTeachingMode={setTeachingMode}
               file={file}
               setFile={setFile}
               loading={loading}
@@ -451,6 +470,13 @@ export default function Home() {
           </div>
         </motion.div>
       </div>
+
+      {/* Learning Dashboard Modal */}
+      <LearningDashboard 
+        isOpen={dashboardOpen} 
+        onClose={() => setDashboardOpen(false)} 
+        apiUrl={API_URL} 
+      />
     </div>
   );
 }

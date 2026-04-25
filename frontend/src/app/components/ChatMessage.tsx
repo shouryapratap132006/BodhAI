@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, Lightbulb, Target, List, HelpCircle, CheckCircle2, XCircle, ExternalLink, Play, ChevronRight, LayoutList, Map, ArrowRight, ArrowLeftRight } from "lucide-react";
+import { BookOpen, Lightbulb, Target, List, HelpCircle, CheckCircle2, XCircle, ExternalLink, Play, ChevronRight, LayoutList, Map, ArrowRight, ArrowLeftRight, AlertCircle, TrendingUp } from "lucide-react";
 import type { TurnMessage, Question, Resource, Evaluation } from "../page";
 
 interface Props { message: TurnMessage; }
@@ -99,15 +99,34 @@ function StepsList({ steps }: { steps: string[] }) {
   );
 }
 
-// ── Hint block ─────────────────────────────────────────────────────────────
-function HintBlock({ hint }: { hint: string }) {
-  if (!hint) return null;
+// ── Hint block (Interactive) ────────────────────────────────────────────────
+function InteractiveHintBlock({ hints, singleHint }: { hints?: string[]; singleHint?: string }) {
+  const [currentHint, setCurrentHint] = useState(0);
+  
+  const allHints = hints?.length ? hints : (singleHint ? [singleHint] : []);
+  if (!allHints.length) return null;
+
   return (
-    <motion.section variants={blockVariants}>
-      <div className="rounded-xl border border-yellow-500/25 bg-yellow-500/5 p-4 border-l-2 border-l-yellow-500">
-        <SectionLabel icon={<Lightbulb className="w-3.5 h-3.5" />} text="Hint" color="text-yellow-500" />
-        <p className="text-[#e0d8a8] text-[14px] leading-relaxed">{hint}</p>
+    <motion.section variants={blockVariants} className="space-y-3">
+      <SectionLabel icon={<Lightbulb className="w-3.5 h-3.5" />} text="Hints" color="text-yellow-500" />
+      <div className="space-y-2">
+        {allHints.slice(0, currentHint + 1).map((hint, i) => (
+          <div key={i} className="rounded-xl border border-yellow-500/25 bg-yellow-500/5 p-4 border-l-2 border-l-yellow-500">
+            {allHints.length > 1 && (
+              <span className="text-[12px] font-semibold text-yellow-500 uppercase tracking-wider mb-1 block">Hint {i + 1}</span>
+            )}
+            <p className="text-[#e0d8a8] text-[14px] leading-relaxed">{hint}</p>
+          </div>
+        ))}
       </div>
+      {currentHint < allHints.length - 1 && (
+        <button
+          onClick={() => setCurrentHint(c => c + 1)}
+          className="mt-2 px-3 py-1.5 rounded-full border border-yellow-500/30 bg-yellow-500/10 text-[12px] font-medium text-yellow-500 hover:bg-yellow-500/20 transition-all"
+        >
+          Show Next Hint
+        </button>
+      )}
     </motion.section>
   );
 }
@@ -204,7 +223,14 @@ function PlayableQuiz({ questions }: { questions: Question[] }) {
                           <li key={oi}>
                             <button
                               disabled={hasAnswered}
-                              onClick={() => setSelections(prev => ({ ...prev, [i]: optionLetter }))}
+                              onClick={() => {
+                                setSelections(prev => ({ ...prev, [i]: optionLetter }));
+                                fetch("http://127.0.0.1:8000/api/topic-progress/", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ topic: "Quiz Interaction", correct: isThisCorrectAnswer })
+                                }).catch(console.error);
+                              }}
                               className={`w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-all duration-200 ${bgClass}`}
                             >
                               <span className={`shrink-0 w-6 h-6 rounded bg-black/20 border border-white/10 text-[11px] font-semibold flex items-center justify-center ${textClass}`}>
@@ -324,6 +350,40 @@ function EvaluationBlock({ attempt, evaluation }: { attempt?: string; evaluation
   );
 }
 
+// ── Mistake Analysis block ──────────────────────────────────────────────────
+function MistakeAnalysisBlock({ analysis }: { analysis?: Record<string, string> }) {
+  if (!analysis || !analysis.mistake) return null;
+  return (
+    <motion.section variants={blockVariants}>
+      <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-4 border-l-2 border-l-red-500 space-y-3">
+        <SectionLabel icon={<AlertCircle className="w-3.5 h-3.5" />} text="Mistake Analysis" color="text-red-400" />
+        <div>
+          <strong className="text-red-300 text-[13px] block mb-1">Mistake:</strong>
+          <p className="text-[#e0b8b8] text-[14px]">{analysis.mistake}</p>
+        </div>
+        {analysis.why_wrong && (
+          <div>
+            <strong className="text-red-300 text-[13px] block mb-1">Why it's wrong:</strong>
+            <p className="text-[#e0b8b8] text-[14px]">{analysis.why_wrong}</p>
+          </div>
+        )}
+        {analysis.correct_approach && (
+          <div className="mt-2 border-t border-red-500/10 pt-3">
+            <strong className="text-emerald-400 text-[13px] block mb-1">Correct Approach:</strong>
+            <p className="text-[#b8e0c8] text-[14px]">{analysis.correct_approach}</p>
+          </div>
+        )}
+        {analysis.tip && (
+          <div className="mt-3 flex gap-2 items-start bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20">
+            <Lightbulb className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
+            <p className="text-[#e0d8a8] text-[13px] leading-relaxed">{analysis.tip}</p>
+          </div>
+        )}
+      </div>
+    </motion.section>
+  );
+}
+
 // ── Resources ──────────────────────────────────────────────────────────────
 function ResourcesList({ resources }: { resources: Resource[] }) {
   if (!resources?.length) return null;
@@ -434,6 +494,24 @@ export default function ChatMessage({ message }: Props) {
               </div>
             )}
           </div>
+
+          {/* Topic Progress & Next Topic */}
+          {(message.topic_progress?.level || message.next_recommended_topic) && (
+            <div className="flex flex-wrap gap-2 w-full mt-2">
+              {message.topic_progress?.accuracy && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#111] border border-[#2a2a2a] text-[11px] font-medium text-[#888]">
+                  <TrendingUp className="w-3 h-3 text-emerald-400" />
+                  Accuracy: {message.topic_progress.accuracy}%
+                </div>
+              )}
+              {message.next_recommended_topic && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#111] border border-[#2a2a2a] text-[11px] font-medium text-[#888]">
+                  <ArrowRight className="w-3 h-3 text-blue-400" />
+                  Next: {message.next_recommended_topic}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <motion.div
@@ -460,8 +538,8 @@ export default function ChatMessage({ message }: Props) {
                 </motion.section>
               )}
 
-              {/* Hint (solve mode) */}
-              <HintBlock hint={message.hint ?? ""} />
+              {/* Hint (interactive) */}
+              <InteractiveHintBlock hints={message.hint_levels} singleHint={message.hint} />
 
               {/* Steps */}
               <StepsList steps={message.steps ?? []} />
@@ -486,6 +564,9 @@ export default function ChatMessage({ message }: Props) {
               {(!hasImprovement || showOriginal) && (
                 <EvaluationBlock attempt={message.student_attempt} evaluation={message.evaluation} />
               )}
+
+              {/* Mistake Analysis */}
+              <MistakeAnalysisBlock analysis={message.mistake_analysis} />
 
               {/* Resources */}
               <ResourcesList resources={message.resources ?? []} />
