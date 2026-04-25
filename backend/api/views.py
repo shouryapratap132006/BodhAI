@@ -137,10 +137,10 @@ class ChatView(APIView):
         intent               = result.get("intent", "learn_topic")
         response_type        = result.get("response_type", "learn")
 
-        # Use improved explanation if refinement ran
-        final_explanation = improved_explanation if improved_explanation else explanation
+        # The `explanation` field should store the ORIGINAL explanation
+        # The `improved_explanation` field stores the refinement
 
-        if not final_explanation and not result.get("questions") and not result.get("hint"):
+        if not explanation and not improved_explanation and not result.get("questions") and not result.get("hint"):
             return Response(
                 {"error": "AI returned an empty response. Please try again."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -157,7 +157,7 @@ class ChatView(APIView):
             intent               = intent,
             response_type        = response_type,
             mode                 = mode,
-            explanation          = final_explanation,
+            explanation          = explanation,
             steps                = result.get("steps", []),
             hint                 = result.get("hint", ""),
             solution             = result.get("solution", ""),
@@ -181,7 +181,7 @@ class ChatView(APIView):
                 "message_id":         msg.id,
                 "intent":             intent,
                 "type":               response_type,
-                "explanation":        final_explanation,
+                "explanation":        explanation,
                 "steps":              result.get("steps", []),
                 "hint":               result.get("hint", ""),
                 "solution":           result.get("solution", ""),

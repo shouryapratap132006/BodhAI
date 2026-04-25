@@ -91,8 +91,20 @@ def _fetch_trusted_resources(query: str) -> List[dict]:
                 })
     except Exception as e:
         print(f"Error fetching resources: {e}")
-        pass
-    
+        # Fallback to guaranteed working search links if DDG is rate-limited
+        resources = [
+            {
+                "title": f"YouTube Lessons: {query.title()}",
+                "type": "video",
+                "link": f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}+tutorial"
+            },
+            {
+                "title": f"Wikipedia: {query.title()}",
+                "type": "article",
+                "link": f"https://en.wikipedia.org/wiki/Special:Search?search={query.replace(' ', '+')}"
+            }
+        ]
+
     # Cap to max 4 resources
     return resources[:4]
 
@@ -300,7 +312,7 @@ def content_node(state: BodhState) -> dict:
         "- For 'learn_topic', populate 'lesson_structure' acting as an Autonomous Instructional Designer, aligning with Gagne's/Merrill's principles.\n"
         "- explanation: 2-4 paragraphs, engaging and clear\n"
         "- steps: 3-6 actionable steps\n"
-        "- For resources: provide REAL, well-known links (e.g., MDN, Khan Academy, Wikipedia, YouTube)\n"
+        "- For resources: NEVER output fake links to bodhai.com. Provide real links to Khan Academy, Wikipedia, or YouTube only.\n"
         "- Keep responses focused and token-efficient\n"
         "- Be context-aware of the conversation history"
     )
@@ -323,14 +335,33 @@ def content_node(state: BodhState) -> dict:
     final_resources = parsed.get("resources", [])
     if intent in ["learn_topic", "solve_question", "get_resources"]:
         query = state.get("input", "")
-        # If the input is just "give me resources", we should use context. We will just use the input for now.
+        
+        # If the user just clicked "Get resources on this", we need to search for the ACTUAL topic
+        if intent == "get_resources" or "resource" in query.lower() or len(query) < 5:
+            history = state.get("conversation_history", [])
+            last_topic = ""
+            # Find the last meaningful user question that wasn't just "get resources"
+            for msg in reversed(history):
+                if msg.get("role") == "user":
+                    content = msg.get("content", "")
+                    if "resource" not in content.lower() and len(content) > 3:
+                        last_topic = content
+                        break
+            
+            if last_topic:
+                query = last_topic
+                
         fetched = _fetch_trusted_resources(query)
         if fetched:
             final_resources = fetched
 
+    explanation = parsed.get("explanation", "")
+    if isinstance(explanation, dict):
+        explanation = "\n\n".join([str(v) for v in explanation.values()])
+
     return {
         "response_type":  parsed.get("response_type", resp_type),
-        "explanation":    parsed.get("explanation", ""),
+        "explanation":    explanation,
         "steps":          parsed.get("steps", []),
         "hint":           parsed.get("hint", ""),
         "solution":       parsed.get("solution", ""),
@@ -456,7 +487,8 @@ def refiner_node(state: BodhState) -> dict:
         "- Address the specific feedback and correct any identified learning gaps\n"
         "- Simplify explanations, adjust examples, and modify difficulty if needed\n"
         "- Keep it concise (2-3 paragraphs)\n\n"
-        'Return ONLY raw JSON: {"improved_explanation": "..."}'
+        'Return ONLY raw JSON: {"improved_explanation": "your full text here"}\n'
+        'CRITICAL: "improved_explanation" MUST be a single string, not a nested object/dictionary.'
     )
     resp = llm.invoke([
         SystemMessage(content="You are an AI tutor refiner. Return only JSON."),
@@ -464,6 +496,10 @@ def refiner_node(state: BodhState) -> dict:
     ])
     parsed = _safe_json(resp.content)
     improved = parsed.get("improved_explanation", explanation)
+    
+    # If LLM ignored instructions and returned a dict, flatten it into a string
+    if isinstance(improved, dict):
+        improved = "\n\n".join([str(v) for v in improved.values()])
 
     return {
         "improved_explanation": improved,

@@ -332,7 +332,9 @@ function ResourcesList({ resources }: { resources: Resource[] }) {
       <SectionLabel icon={<ExternalLink className="w-3.5 h-3.5" />} text="Resources" color="text-[#555]" />
       <div className="flex flex-wrap gap-2">
         {resources.map((r, i) => {
-          const href = r.link || (r as any).url || "#";
+          let href = typeof r.link === "string" ? r.link : (typeof (r as any).url === "string" ? (r as any).url : "#");
+          if (typeof href !== "string") href = "#";
+          
           return (
             <a
               key={i}
@@ -452,9 +454,9 @@ export default function ChatMessage({ message }: Props) {
                     text={showOriginal ? "Original Explanation" : (message.improved_explanation ? "Improved Explanation" : "Explanation")}
                     color={showOriginal ? "text-[#888]" : (message.improved_explanation ? "text-orange-400" : "text-orange-500")}
                   />
-                  <p className={`text-[14px] leading-[1.8] whitespace-pre-wrap ${showOriginal ? 'text-[#888]' : 'text-[#d1d1d6]'}`}>
-                    {finalExplanation}
-                  </p>
+                  <div className={`text-[14px] leading-[1.8] whitespace-pre-wrap ${showOriginal ? 'text-[#888]' : 'text-[#d1d1d6]'}`}>
+                    {typeof finalExplanation === 'string' ? finalExplanation : JSON.stringify(finalExplanation, null, 2)}
+                  </div>
                 </motion.section>
               )}
 
@@ -480,8 +482,10 @@ export default function ChatMessage({ message }: Props) {
                 <QuestionsList questions={message.questions ?? []} responseType={message.type} />
               )}
 
-              {/* Student attempt + evaluation */}
-              <EvaluationBlock attempt={message.student_attempt} evaluation={message.evaluation} />
+              {/* Student attempt + evaluation (only show for original draft or if perfect on first try) */}
+              {(!hasImprovement || showOriginal) && (
+                <EvaluationBlock attempt={message.student_attempt} evaluation={message.evaluation} />
+              )}
 
               {/* Resources */}
               <ResourcesList resources={message.resources ?? []} />
