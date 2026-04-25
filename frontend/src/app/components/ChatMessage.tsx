@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, Lightbulb, Target, List, HelpCircle, CheckCircle2, XCircle, ExternalLink, Play, ChevronRight } from "lucide-react";
+import { BookOpen, Lightbulb, Target, List, HelpCircle, CheckCircle2, XCircle, ExternalLink, Play, ChevronRight, LayoutList, Map, ArrowRight, ArrowLeftRight } from "lucide-react";
 import type { TurnMessage, Question, Resource, Evaluation } from "../page";
 
 interface Props { message: TurnMessage; }
@@ -35,6 +35,36 @@ function SectionLabel({ icon, text, color }: { icon: React.ReactNode; text: stri
       {icon}
       {text}
     </div>
+  );
+}
+
+// ── Lesson Plan Block ──────────────────────────────────────────────────────
+function LessonPlanBlock({ lesson }: { lesson?: Record<string, string> }) {
+  if (!lesson || Object.keys(lesson).length === 0) return null;
+  const sections = [
+    { key: "attention", label: "Gain Attention", icon: <Lightbulb className="w-3.5 h-3.5" /> },
+    { key: "objectives", label: "Objectives", icon: <Target className="w-3.5 h-3.5" /> },
+    { key: "prior_knowledge", label: "Prior Knowledge", icon: <Map className="w-3.5 h-3.5" /> },
+    { key: "content", label: "Content", icon: <BookOpen className="w-3.5 h-3.5" /> },
+    { key: "guided_practice", label: "Guided Practice", icon: <List className="w-3.5 h-3.5" /> },
+    { key: "assessment", label: "Assessment", icon: <HelpCircle className="w-3.5 h-3.5" /> },
+    { key: "feedback", label: "Feedback", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+    { key: "improvement", label: "Improvement", icon: <ArrowRight className="w-3.5 h-3.5" /> },
+  ];
+
+  return (
+    <motion.section variants={blockVariants} className="space-y-4">
+      {sections.map((sec) => {
+        const val = lesson[sec.key];
+        if (!val) return null;
+        return (
+          <div key={sec.key} className="rounded-xl border border-orange-500/10 bg-orange-500/5 p-4">
+            <SectionLabel icon={sec.icon} text={sec.label} color="text-orange-400" />
+            <p className="text-[14px] text-[#d1d1d6] leading-relaxed whitespace-pre-wrap">{val}</p>
+          </div>
+        );
+      })}
+    </motion.section>
   );
 }
 
@@ -317,6 +347,9 @@ function ResourcesList({ resources }: { resources: Resource[] }) {
 
 // ── Main ChatMessage component ─────────────────────────────────────────────
 export default function ChatMessage({ message }: Props) {
+  const [viewMode, setViewMode] = useState<"chat" | "lesson">("chat");
+  const [showOriginal, setShowOriginal] = useState(false);
+
   if (message.role === "user") {
     return (
       <motion.div
@@ -334,7 +367,9 @@ export default function ChatMessage({ message }: Props) {
 
   // ── Assistant message ──────────────────────────────────────────────────
   const intentInfo = intentConfig[message.intent ?? ""] ?? null;
-  const finalExplanation = message.improved_explanation || message.explanation || "";
+  const finalExplanation = showOriginal ? message.explanation : (message.improved_explanation || message.explanation || "");
+  const hasLessonStructure = message.lesson_structure && Object.keys(message.lesson_structure).length > 0;
+  const hasImprovement = Boolean(message.improved_explanation);
 
   return (
     <motion.div
@@ -349,12 +384,44 @@ export default function ChatMessage({ message }: Props) {
       </div>
 
       <div className="flex-1 min-w-0 space-y-6">
-        {/* Intent badge */}
-        {intentInfo && (
-          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${intentInfo.color}`}>
-            {intentInfo.label}
+        {/* Top bar with badges and toggles */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {intentInfo && (
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${intentInfo.color}`}>
+              {intentInfo.label}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            {hasImprovement && viewMode === "chat" && (
+              <button
+                onClick={() => setShowOriginal(!showOriginal)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#2a2a2a] bg-[#111] text-[11px] font-medium text-[#888] hover:text-orange-400 hover:border-orange-500/30 transition-all"
+              >
+                <ArrowLeftRight className="w-3 h-3" />
+                {showOriginal ? "Show Improved" : "Show Original"}
+              </button>
+            )}
+
+            {hasLessonStructure && (
+              <div className="flex bg-[#111] p-0.5 rounded-lg border border-[#2a2a2a]">
+                <button
+                  onClick={() => setViewMode("chat")}
+                  className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all ${viewMode === "chat" ? "bg-[#222] text-white shadow-sm" : "text-[#777] hover:text-white"}`}
+                >
+                  Chat View
+                </button>
+                <button
+                  onClick={() => setViewMode("lesson")}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium transition-all ${viewMode === "lesson" ? "bg-orange-500/20 text-orange-400 shadow-sm" : "text-[#777] hover:text-orange-400"}`}
+                >
+                  <LayoutList className="w-3 h-3" />
+                  Lesson Plan
+                </button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         <motion.div
           variants={containerVariants}
@@ -362,45 +429,53 @@ export default function ChatMessage({ message }: Props) {
           animate="show"
           className="space-y-6"
         >
-          {/* Main explanation */}
-          {finalExplanation && (
-            <motion.section variants={blockVariants}>
-              <SectionLabel
-                icon={<BookOpen className="w-3.5 h-3.5" />}
-                text={message.improved_explanation ? "Improved Explanation" : "Explanation"}
-                color={message.improved_explanation ? "text-orange-400" : "text-orange-500"}
-              />
-              <p className="text-[#d1d1d6] text-[14px] leading-[1.8] whitespace-pre-wrap">{finalExplanation}</p>
-            </motion.section>
-          )}
-
-          {/* Hint (solve mode) */}
-          <HintBlock hint={message.hint ?? ""} />
-
-          {/* Steps */}
-          <StepsList steps={message.steps ?? []} />
-
-          {/* Example */}
-          <ExampleBlock example={message.example ?? ""} />
-
-          {/* Full solution (solve mode) */}
-          <SolutionBlock solution={message.solution ?? ""} />
-
-          {/* Questions (quiz / homework / revise) */}
-          {message.type === "quiz" ? (
-            <>
-              <PlayableQuiz questions={(message.questions ?? []).filter(q => q.type === "mcq")} />
-              <QuestionsList questions={(message.questions ?? []).filter(q => q.type !== "mcq")} responseType={message.type} />
-            </>
+          {viewMode === "lesson" && message.lesson_structure ? (
+            <LessonPlanBlock lesson={message.lesson_structure} />
           ) : (
-            <QuestionsList questions={message.questions ?? []} responseType={message.type} />
+            <>
+              {/* Main explanation */}
+              {finalExplanation && (
+                <motion.section variants={blockVariants}>
+                  <SectionLabel
+                    icon={<BookOpen className="w-3.5 h-3.5" />}
+                    text={showOriginal ? "Original Explanation" : (message.improved_explanation ? "Improved Explanation" : "Explanation")}
+                    color={showOriginal ? "text-[#888]" : (message.improved_explanation ? "text-orange-400" : "text-orange-500")}
+                  />
+                  <p className={`text-[14px] leading-[1.8] whitespace-pre-wrap ${showOriginal ? 'text-[#888]' : 'text-[#d1d1d6]'}`}>
+                    {finalExplanation}
+                  </p>
+                </motion.section>
+              )}
+
+              {/* Hint (solve mode) */}
+              <HintBlock hint={message.hint ?? ""} />
+
+              {/* Steps */}
+              <StepsList steps={message.steps ?? []} />
+
+              {/* Example */}
+              <ExampleBlock example={message.example ?? ""} />
+
+              {/* Full solution (solve mode) */}
+              <SolutionBlock solution={message.solution ?? ""} />
+
+              {/* Questions (quiz / homework / revise) */}
+              {message.type === "quiz" ? (
+                <>
+                  <PlayableQuiz questions={(message.questions ?? []).filter(q => q.type === "mcq")} />
+                  <QuestionsList questions={(message.questions ?? []).filter(q => q.type !== "mcq")} responseType={message.type} />
+                </>
+              ) : (
+                <QuestionsList questions={message.questions ?? []} responseType={message.type} />
+              )}
+
+              {/* Student attempt + evaluation */}
+              <EvaluationBlock attempt={message.student_attempt} evaluation={message.evaluation} />
+
+              {/* Resources */}
+              <ResourcesList resources={message.resources ?? []} />
+            </>
           )}
-
-          {/* Student attempt + evaluation */}
-          <EvaluationBlock attempt={message.student_attempt} evaluation={message.evaluation} />
-
-          {/* Resources */}
-          <ResourcesList resources={message.resources ?? []} />
         </motion.div>
       </div>
     </motion.div>

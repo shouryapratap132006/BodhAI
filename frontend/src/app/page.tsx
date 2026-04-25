@@ -46,6 +46,7 @@ export type TurnMessage = {
   evaluation?: Evaluation;
   improved_explanation?: string;
   resources?: Resource[];
+  lesson_structure?: Record<string, string>;
 };
 
 export type ConversationSummary = {
@@ -244,6 +245,7 @@ export default function Home() {
         evaluation: data.evaluation,
         improved_explanation: data.improved_explanation,
         resources: data.resources,
+        lesson_structure: data.lesson_structure,
       };
       setTurns(prev => [...prev, assistantMessage]);
       loadConversations();
@@ -290,6 +292,7 @@ export default function Home() {
           evaluation: msg.evaluation,
           improved_explanation: msg.improved_explanation,
           resources: msg.resources,
+          lesson_structure: msg.lesson_structure,
         });
       }
       setTurns(rebuilt);

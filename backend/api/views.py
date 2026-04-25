@@ -167,6 +167,7 @@ class ChatView(APIView):
             evaluation           = result.get("evaluation", {}),
             improved_explanation = improved_explanation,
             resources            = result.get("resources", []),
+            lesson_structure     = result.get("lesson_structure", {}),
         )
 
         # Update conversation timestamp
@@ -190,6 +191,7 @@ class ChatView(APIView):
                 "evaluation":         result.get("evaluation", {}),
                 "improved_explanation": improved_explanation,
                 "resources":          result.get("resources", []),
+                "lesson_structure":   result.get("lesson_structure", {}),
             },
             status=status.HTTP_200_OK,
         )

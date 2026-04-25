@@ -60,6 +60,7 @@ class Message(models.Model):
     evaluation           = models.JSONField(default=dict)
     improved_explanation = models.TextField(blank=True)
     resources            = models.JSONField(default=list)
+    lesson_structure     = models.JSONField(default=dict)
 
     created_at = models.DateTimeField(auto_now_add=True)
 

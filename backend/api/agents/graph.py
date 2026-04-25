@@ -47,6 +47,7 @@ class BodhState(TypedDict):
     evaluation: dict                        # {correct: bool, feedback: str}
     improved_explanation: str
     resources: List[dict]                   # [{title, type, link}]
+    lesson_structure: dict
     needs_refinement: bool
 
 
@@ -200,7 +201,8 @@ def architect_node(state: BodhState) -> dict:
         f"Intent: {intent}\n"
         f"Topic/Question: {state.get('input', '')}\n\n"
         f"Task: {intent_guidance}\n\n"
-        "Return a bullet-point outline only. Be concise (max 8 bullets)."
+        "Return a bullet-point outline only. Be concise (max 8 bullets). "
+        "For 'learn_topic', explicitly align with instructional design principles (e.g., Gagne's 9 Events or Merrill's First Principles)."
     )
     resp = llm.invoke([
         SystemMessage(content="You are an expert curriculum architect."),
@@ -241,7 +243,9 @@ def content_node(state: BodhState) -> dict:
     output_specs = {
         "learn_topic": (
             "learn",
-            '{"response_type":"learn","explanation":"...","steps":["..."],'
+            '{"response_type":"learn",'
+            '"lesson_structure":{"attention":"...","objectives":"...","prior_knowledge":"...","content":"...","guided_practice":"...","assessment":"...","feedback":"...","improvement":"..."},'
+            '"explanation":"...","steps":["..."],'
             '"example":"...","question":"...","resources":[{"title":"...","type":"article|video","link":"..."}]}'
         ),
         "solve_question": (
@@ -293,6 +297,7 @@ def content_node(state: BodhState) -> dict:
         + "\n\n### Output Format (return ONLY this JSON, no markdown):\n"
         + output_template
         + "\n\nRules:\n"
+        "- For 'learn_topic', populate 'lesson_structure' acting as an Autonomous Instructional Designer, aligning with Gagne's/Merrill's principles.\n"
         "- explanation: 2-4 paragraphs, engaging and clear\n"
         "- steps: 3-6 actionable steps\n"
         "- For resources: provide REAL, well-known links (e.g., MDN, Khan Academy, Wikipedia, YouTube)\n"
@@ -332,6 +337,7 @@ def content_node(state: BodhState) -> dict:
         "questions":      parsed.get("questions", []),
         "example":        parsed.get("example", ""),
         "resources":      final_resources,
+        "lesson_structure": parsed.get("lesson_structure", {}),
     }
 
 
@@ -406,12 +412,12 @@ def evaluator_node(state: BodhState) -> dict:
         + eval_focus
         + "\n\nEvaluate:\n"
         "1. Is the explanation clear, complete, and accurate?\n"
-        "2. Are there gaps, confusing parts, or missing examples?\n"
-        "3. Does it address the student's level?\n\n"
+        "2. Detect Learning Gaps: Identify misunderstood concepts, weak reasoning, or incorrect assumptions.\n"
+        "3. Does it address the student's level? Are there missing examples?\n\n"
         "Return ONLY a raw JSON:\n"
-        '{"correct": true/false, "feedback": "specific improvement suggestion or empty string"}\n\n'
-        "Set correct=true if explanation is good (no refinement needed).\n"
-        "Set correct=false ONLY if there are clear gaps or confusion."
+        '{"correct": true/false, "feedback": "specific pedagogical improvement suggestion or empty string"}\n\n'
+        "Set correct=true if explanation is highly effective (no refinement needed).\n"
+        "Set correct=false ONLY if there are clear pedagogical gaps or confusion."
     )
     resp = llm.invoke([
         SystemMessage(content="You are an educational evaluator. Return only JSON."),
@@ -447,9 +453,8 @@ def refiner_node(state: BodhState) -> dict:
         f"Evaluator Feedback:\n{feedback}\n\n"
         f"Mode: {mode}\n{mode_instr}\n\n"
         "Write an improved version of the explanation:\n"
-        "- Address the specific feedback\n"
-        "- Add clearer examples or analogies\n"
-        "- Simplify confusing parts\n"
+        "- Address the specific feedback and correct any identified learning gaps\n"
+        "- Simplify explanations, adjust examples, and modify difficulty if needed\n"
         "- Keep it concise (2-3 paragraphs)\n\n"
         'Return ONLY raw JSON: {"improved_explanation": "..."}'
     )
@@ -505,7 +510,7 @@ _workflow.add_conditional_edges(
     {"refine": "refiner", "end": END},
 )
 
-# Refiner loops back to content for one more pass
-_workflow.add_edge("refiner", "content")
+# Refiner completes the loop and goes to END
+_workflow.add_edge("refiner", END)
 
 graph = _workflow.compile()

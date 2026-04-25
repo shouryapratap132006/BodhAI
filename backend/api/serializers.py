@@ -23,6 +23,7 @@ class MessageSerializer(serializers.ModelSerializer):
             "evaluation",
             "improved_explanation",
             "resources",
+            "lesson_structure",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
