@@ -18,7 +18,7 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "bodhai-5myw.onrender.com,localhost,127.0.0.1").split(",")
 
 # ── CORS ──────────────────────────────────────────────────────
 # In development, allow the local Next.js dev server.
@@ -34,9 +34,14 @@ CORS_ALLOWED_ORIGINS = (
         "http://127.0.0.1:3001",
         "http://localhost:3002",
         "http://127.0.0.1:3002",
+        "https://bodh-ai-kappa.vercel.app",
     ]
 )
 CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://bodh-ai-kappa.vercel.app",
+]
 
 # ── Installed apps ────────────────────────────────────────────
 INSTALLED_APPS = [
@@ -54,7 +59,7 @@ INSTALLED_APPS = [
 # ── Middleware ────────────────────────────────────────────────
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "corsheaders.middleware.CorsMiddleware",          # must be before CommonMiddleware
+    "corsheaders.middleware.CorsMiddleware",  # AFTER security, BEFORE common
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
