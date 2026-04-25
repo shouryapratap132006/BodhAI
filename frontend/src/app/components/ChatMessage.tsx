@@ -60,7 +60,18 @@ function LessonPlanBlock({ lesson }: { lesson?: Record<string, string> }) {
         return (
           <div key={sec.key} className="rounded-xl border border-orange-500/10 bg-orange-500/5 p-4">
             <SectionLabel icon={sec.icon} text={sec.label} color="text-orange-400" />
-            <p className="text-[14px] text-[#d1d1d6] leading-relaxed whitespace-pre-wrap">{val}</p>
+            {typeof val === "string" ? (
+              <p className="text-[14px] text-[#d1d1d6] leading-relaxed whitespace-pre-wrap">{val}</p>
+            ) : (
+              <div className="space-y-2 text-[14px] text-[#d1d1d6] leading-relaxed">
+                {Object.entries(val).map(([k, v]) => (
+                  <div key={k}>
+                    <strong className="capitalize text-orange-300/80">{k.replace(/_/g, " ")}:</strong>{" "}
+                    {typeof v === "string" ? v : JSON.stringify(v)}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}

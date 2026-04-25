@@ -46,7 +46,7 @@ export type TurnMessage = {
   evaluation?: Evaluation;
   improved_explanation?: string;
   resources?: Resource[];
-  lesson_structure?: Record<string, string>;
+  lesson_structure?: Record<string, any>;
 };
 
 export type ConversationSummary = {
