@@ -307,6 +307,23 @@ def content_node(state: BodhState) -> dict:
         ),
     }
 
+    teaching_mode = state.get("teaching_mode", "learn")
+
+    if intent == "quiz_me":
+        if teaching_mode == "test":
+            output_specs["quiz_me"] = (
+                "test",
+                '{"response_type":"test","explanation":"Brief neutral intro... OR detailed evaluation of submitted answers including correct solutions...","questions":['
+                '{"type":"short","text":"..."},'
+                '{"type":"conceptual","text":"..."}],"mistake_analysis":{"mistake":"...","why_wrong":"...","correct_approach":"...","tip":"..."},"next_recommended_topic":"...","topic_progress":{"accuracy":60,"level":"medium"}}'
+            )
+        else:
+            output_specs["quiz_me"] = (
+                "quiz",
+                '{"response_type":"quiz","explanation":"Brief encouraging intro...","questions":['
+                '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"A","hint":"explanation of answer and why others are wrong"}],"next_recommended_topic":"...","topic_progress":{"accuracy":60,"level":"medium"}}'
+            )
+
     resp_type, output_template = output_specs.get(intent, output_specs["learn_topic"])
 
     prompt = (
@@ -321,9 +338,14 @@ def content_node(state: BodhState) -> dict:
         + output_template
         + "\n\nRules:\n"
         "- For 'learn_topic', populate 'lesson_structure' acting as an Autonomous Instructional Designer.\n"
-        "- If teaching_mode is 'test', YOU MUST NOT provide a full explanation or solution. You MUST only provide questions to quiz the user, or progressive hint_levels. Your 'explanation' field should just be a brief intro like 'Let's test your knowledge!'\n"
+        "### STRICT MODE RULES:\n"
+        "- QUIZ MODE (teaching_mode='learn'): Practice mode. Ask exactly 1 question at a time. Wait for user answer. Provide immediate feedback using 'answer' and 'hint' (explain correct/incorrect and why other options are wrong). Tone: encouraging, teaching-oriented.\n"
+        "- TEST MODE (teaching_mode='test'): Assessment mode. Generate 3-5 questions at once. DO NOT use MCQs. Use ONLY short-answer or conceptual questions. DO NOT provide answers or hints initially. Wait for the user to answer all of them. Tone: neutral, evaluative.\n"
+        "- TEST EVALUATION (if teaching_mode='test' and user submits answers): Evaluate their answers. Return their total score, provide a detailed analysis of their answers along with the correct solutions in the 'explanation' field, and populate 'mistake_analysis' with specific feedback and hints.\n"
+        "- STRICT RULE: Do not mix behaviors. Quiz = practice, Test = delayed evaluation.\n"
+        "### OTHER RULES:\n"
         "- If the user provides a wrong answer or struggles, populate 'mistake_analysis'.\n"
-        "- If teaching_mode is 'test' or intent is 'solve_question', prefer giving progressive 'hint_levels' instead of direct answers.\n"
+        "- If intent is 'solve_question', prefer giving progressive 'hint_levels' instead of direct answers.\n"
         "- Always populate 'topic_progress' (estimate accuracy 0-100 and level easy/medium/hard) and 'next_recommended_topic'.\n"
         "- explanation: 2-4 paragraphs (ONLY IF teaching_mode is 'learn')\n"
         "- steps: 3-6 actionable steps\n"

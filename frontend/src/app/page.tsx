@@ -18,7 +18,7 @@ export type Intent =
   | "explain_again"
   | "get_resources";
 
-export type ResponseType = "learn" | "solve" | "quiz" | "homework" | "revise";
+export type ResponseType = "learn" | "solve" | "quiz" | "homework" | "revise" | "test";
 export type Mode = "beginner" | "balanced" | "advanced";
 
 export type Resource = { title: string; type: "article" | "video"; link: string };

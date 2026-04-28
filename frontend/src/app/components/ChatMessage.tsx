@@ -277,7 +277,8 @@ function PlayableQuiz({ questions }: { questions: Question[] }) {
 function QuestionsList({ questions, responseType }: { questions: Question[]; responseType?: string }) {
   if (!questions?.length) return null;
   const sectionLabel = responseType === "homework" ? "Practice Problems" :
-                       responseType === "revise"   ? "Revision Questions" : "Questions";
+                       responseType === "revise"   ? "Revision Questions" :
+                       responseType === "test"     ? "Test Assessment" : "Questions";
 
   return (
     <motion.section variants={blockVariants}>
@@ -294,6 +295,21 @@ function QuestionsList({ questions, responseType }: { questions: Question[]; res
                   {difficultyLabel[q.type] ?? q.type}
                 </span>
                 <p className="text-[14px] text-[#d1d1d6] leading-relaxed">{q.text}</p>
+                {/* Options for MCQ */}
+                {q.options && q.options.length > 0 && (
+                  <ul className="space-y-1.5 mt-2">
+                    {q.options.map((opt, oi) => {
+                      const optionLetter = String.fromCharCode(65 + oi);
+                      const optionText = opt.replace(/^[A-Da-d]\)\s*/, "");
+                      return (
+                        <li key={oi} className="flex items-start gap-2 text-[13px] text-[#aaa]">
+                          <span className="font-semibold text-[#888]">{optionLetter})</span>
+                          <span>{optionText}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
                 {/* Answer for quiz/revise */}
                 {q.answer && (
                   <p className="text-[12px] text-emerald-400/80 mt-1">
@@ -460,8 +476,8 @@ export default function ChatMessage({ message }: Props) {
         {/* Top bar with badges and toggles */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           {intentInfo && (
-            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${intentInfo.color}`}>
-              {intentInfo.label}
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${message.type === 'test' ? 'text-red-400 bg-red-400/10 border-red-400/20' : intentInfo.color}`}>
+              {message.type === 'test' ? '🧪 Test' : intentInfo.label}
             </div>
           )}
 
