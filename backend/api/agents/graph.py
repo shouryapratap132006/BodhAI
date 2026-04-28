@@ -11,6 +11,7 @@ Intents:
   learn_topic | solve_question | revise | quiz_me | homework | explain_again
 """
 
+from ast import If
 import json
 import re
 from typing import TypedDict, List, Optional, Literal
@@ -38,6 +39,12 @@ class BodhState(TypedDict):
 
     # Output fields
     response_type: str                      # learn | solve | quiz | homework | revise
+    current_topic: str
+    previous_topic: str
+    is_new_topic: bool
+    user_level: str
+    weak_areas: list
+    last_score: float
     explanation: str
     steps: List[str]
     hint: str
@@ -159,6 +166,72 @@ def _mode_instructions(mode: str) -> str:
         ),
     }.get(mode, "")
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Node 0: Context Manager
+# ─────────────────────────────────────────────────────────────────────────────
+def context_manager_node(state: BodhState) -> dict:
+    """
+    Detects topic shifts and fetches long-term memory context from the database.
+    """
+    llm = _llm(temperature=0, json_mode=True)
+    input_text = state.get("input", "")
+    prev_topic = state.get("current_topic", "")
+    history_text = _history_to_text(state.get("conversation_history", []))
+
+    # Detect topic
+    prompt = (
+        "You are a topic detection system for an AI tutor.\n"
+        f"Conversation history:\n{history_text}\n\n"
+        f"New user input:\n{input_text}\n\n"
+        "Identify the primary educational topic the user wants to discuss (e.g. 'Recursion', 'Newton Laws').\n"
+        "Return ONLY valid JSON: {\"topic\": \"Extracted Topic Name\"}"
+    )
+    resp = llm.invoke([
+        SystemMessage(content="You are a strict topic classifier. Return ONLY JSON."),
+        HumanMessage(content=prompt),
+    ])
+    parsed = _safe_json(resp.content)
+    detected_topic = parsed.get("topic", prev_topic or "General")
+
+    is_new = False
+    if prev_topic and detected_topic.lower() != prev_topic.lower():
+        is_new = True
+    if "[Content extracted from uploaded" in input_text:
+        is_new = True
+
+    history = state.get("conversation_history", [])
+    if is_new:
+        history = [] # Reset short-term memory on context switch
+
+    # Fetch long term memory from Django models
+    user_id = "default"
+    user_level = "Beginner"
+    weak_areas = []
+    last_score = 0
+
+    try:
+        from api.models import UserLearningTopic, QuizAttempt
+        topic_obj = UserLearningTopic.objects.filter(user_id=user_id, topic_name__iexact=detected_topic).first()
+        if topic_obj:
+            user_level = "Intermediate" if topic_obj.progress > 50 else "Beginner"
+        
+        quiz = QuizAttempt.objects.filter(user_id=user_id, topic__iexact=detected_topic).order_by('-timestamp').first()
+        if quiz:
+            last_score = quiz.score
+            weak_areas = quiz.mistakes
+    except Exception:
+        pass
+
+    return {
+        "current_topic": detected_topic,
+        "previous_topic": prev_topic,
+        "is_new_topic": is_new,
+        "user_level": user_level,
+        "weak_areas": weak_areas,
+        "last_score": last_score,
+        "conversation_history": history
+    }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Node 1: Intent Detection
@@ -326,8 +399,28 @@ def content_node(state: BodhState) -> dict:
 
     resp_type, output_template = output_specs.get(intent, output_specs["learn_topic"])
 
+    # ── Context Builder ────────────────────────────────────────────────
+    curr_topic = state.get("current_topic", "")
+    prev_topic = state.get("previous_topic", "")
+    is_new = state.get("is_new_topic", False)
+    user_lvl = state.get("user_level", "Beginner")
+    weak_areas = state.get("weak_areas", [])
+    last_score = state.get("last_score", 0)
+
+    context_str = f"### 🧠 SYSTEM CONTEXT\n- Current Topic: {curr_topic}\n"
+    if is_new and prev_topic:
+        context_str += f"- Topic Switched! Ignore previous topic: {prev_topic} unless explicitly asked.\n"
+    context_str += f"- User Level: {user_lvl}\n"
+    if weak_areas:
+        context_str += f"- User's past weak areas on this topic: {weak_areas}. Address these proactively!\n"
+    if last_score:
+        context_str += f"- User's last quiz score on this topic: {last_score}\n"
+    context_str += "Focus ONLY on the current topic.\n"
+
     prompt = (
-        "You are an expert AI tutor.\n\n"
+        "You are NOT an AI. You are a highly engaging personal home tutor teaching a real student sitting in front of you.\n"
+        "Your goal is NOT to explain — your goal is to make the student UNDERSTAND and stay engaged.\n\n"
+        f"{context_str}\n"
         f"### Conversation History:\n{history_text}\n\n"
         f"### Current Input:\n{state.get('input', '')}\n\n"
         f"### Learning Outline:\n{state.get('architect_outline', '')}\n\n"
@@ -336,25 +429,48 @@ def content_node(state: BodhState) -> dict:
         + refine_ctx
         + "\n\n### Output Format (return ONLY this JSON, no markdown):\n"
         + output_template
-        + "\n\nRules:\n"
-        "- For 'learn_topic', populate 'lesson_structure' acting as an Autonomous Instructional Designer.\n"
+        + "\n\n### TEACHING STYLE (VERY IMPORTANT)\n"
+        "- Start like a conversation, not a lecture.\n"
+        "- Keep explanations SHORT, crisp, and broken into small chunks.\n"
+        "- Use simple language first, then slightly deepen.\n"
+        "- Avoid long paragraphs completely.\n"
+        "- Use headings, bullets, spacing. Make it visually scannable.\n"
+        "### HOW TO TEACH\n"
+        "1. Start with a HOOK: Ask a relatable question OR give a real-life analogy.\n"
+        "2. Break into clear sections using bold Markdown headings (###).\n"
+        "3. Explain in small readable chunks. Avoid long blocks of text.\n"
+        "4. Break problems down step-by-step.\n"
+        "### INTERACTION (CRITICAL)\n"
+        "- Ask 1–2 questions during explanation.\n"
+        "- Add a small challenge at the end.\n"
+        "- Make the student THINK, not just read.\n"
+        "### OUTPUT FORMAT INSTRUCTION FOR 'explanation' FIELD\n"
+        "Use this Markdown-rich format strictly for the 'explanation' text (with proper newlines):\n"
+        "### 👋 Start\n(Conversational hook)\n\n"
+        "### 📌 Concept\n(short explanation broken into small parts)\n\n"
+        "### 🧠 Deep Dive\n(why it works / simple logic)\n\n"
+        "### ⚡ Example\n(real-life or simple example)\n\n"
+        "### 🧩 Your Turn\n(ask a question or mini challenge to make it interactive)\n\n"
+        "### 📈 Next Step\n(what to learn next based on this topic)\n"
         "### STRICT MODE RULES:\n"
-        "- QUIZ MODE (teaching_mode='learn'): Practice mode. Ask exactly 1 question at a time. Wait for user answer. Provide immediate feedback using 'answer' and 'hint' (explain correct/incorrect and why other options are wrong). Tone: encouraging, teaching-oriented.\n"
+        "- QUIZ MODE (teaching_mode='learn'): Practice mode. Make it fun, not exam-like. Ask exactly 1 tricky but intuitive question at a time. Wait for user answer. Provide immediate feedback using 'answer' and 'hint' (explain correct/incorrect and why other options are wrong). Tone: encouraging, teaching-oriented.\n"
         "- TEST MODE (teaching_mode='test'): Assessment mode. Generate 3-5 questions at once. DO NOT use MCQs. Use ONLY short-answer or conceptual questions. DO NOT provide answers or hints initially. Wait for the user to answer all of them. Tone: neutral, evaluative.\n"
         "- TEST EVALUATION (if teaching_mode='test' and user submits answers): Evaluate their answers. Return their total score, provide a detailed analysis of their answers along with the correct solutions in the 'explanation' field, and populate 'mistake_analysis' with specific feedback and hints.\n"
+        "- SOLVE MODE (intent='solve_question'): DO NOT give answer immediately. First give a HINT, then guide step-by-step, then final answer.\n"
+        "- RE-EXPLAIN (intent='explain_again'): Change explanation style completely. Use a DIFFERENT analogy. Make it simpler than before.\n"
         "- STRICT RULE: Do not mix behaviors. Quiz = practice, Test = delayed evaluation.\n"
         "### OTHER RULES:\n"
+        "- No long paragraphs. No textbook tone. No over-explaining. No robotic language.\n"
+        "- Sound human. Sound like a mentor. Keep it engaging.\n"
+        "- If the response feels boring, like a book, or easily skippable, REWRITE IT.\n"
         "- If the user provides a wrong answer or struggles, populate 'mistake_analysis'.\n"
-        "- If intent is 'solve_question', prefer giving progressive 'hint_levels' instead of direct answers.\n"
         "- Always populate 'topic_progress' (estimate accuracy 0-100 and level easy/medium/hard) and 'next_recommended_topic'.\n"
-        "- explanation: 2-4 paragraphs (ONLY IF teaching_mode is 'learn')\n"
-        "- steps: 3-6 actionable steps\n"
         "- For resources: Provide real links to Khan Academy, Wikipedia, or YouTube only.\n"
-        "- Be context-aware of the conversation history"
+        "- Be context-aware of the conversation history.\n"
     )
 
     resp = llm.invoke([
-        SystemMessage(content="You are an AI tutor. Return only valid JSON. No markdown fences."),
+        SystemMessage(content="You are a highly engaging personal tutor. Return only valid JSON. No markdown fences."),
         HumanMessage(content=prompt),
     ])
 
@@ -522,13 +638,32 @@ def refiner_node(state: BodhState) -> dict:
         "You are an expert AI tutor improving a lesson explanation.\n\n"
         f"Original Explanation:\n{explanation}\n\n"
         f"Evaluator Feedback:\n{feedback}\n\n"
-        f"Mode: {mode}\n{mode_instr}\n\n"
-        "Write an improved version of the explanation:\n"
-        "- Address the specific feedback and correct any identified learning gaps\n"
-        "- Simplify explanations, adjust examples, and modify difficulty if needed\n"
-        "- Keep it concise (2-3 paragraphs)\n\n"
+        "Write a highly engaging, improved version of the explanation addressing the feedback.\n"
+        "CRITICAL: You MUST strictly restructure the output into the following ChatGPT-style tutor format. Do NOT output a single long paragraph. Use bold markdown headings (###).\n\n"
+        "### 👋 Hook\n"
+        "(Start conversationally, e.g. 'Alright, let’s break this down step by step 👇')\n\n"
+        "### 📌 Concept\n"
+        "(Define the concept in 1-2 simple lines)\n\n"
+        "### 🧠 Intuition\n"
+        "(Explain in simple terms using analogy or real-world thinking)\n\n"
+        "### ⚡ Example\n"
+        "(Give a small, clear example, preferably a real-life or visual scenario)\n\n"
+        "### 🧩 Key Points\n"
+        "(Convert important ideas into bullet points to make it scannable)\n\n"
+        "### 🎯 Your Turn\n"
+        "(Ask 1 small question to the user to make it feel interactive)\n\n"
+        "### 📈 Next Step\n"
+        "(Suggest what to learn next)\n\n"
+        "STYLE RULES (VERY IMPORTANT):\n"
+        "- ❌ NO long paragraphs\n"
+        "- ❌ NO textbook tone\n"
+        "- ❌ NO dense blocks of text\n"
+        "- ✅ Use headings, bullet points, and spacing\n"
+        "- ✅ Keep it visually clean and highly scannable\n"
+        "- ✅ Prioritize clarity over completeness\n"
+        "- ✅ Keep explanations SHORT but IMPACTFUL\n\n"
         'Return ONLY raw JSON: {"improved_explanation": "your full text here"}\n'
-        'CRITICAL: "improved_explanation" MUST be a single string, not a nested object/dictionary.'
+        'CRITICAL: "improved_explanation" MUST be a single string containing the formatted markdown text.'
     )
     resp = llm.invoke([
         SystemMessage(content="You are an AI tutor refiner. Return only JSON."),
@@ -565,6 +700,7 @@ def should_refine(state: BodhState) -> Literal["refine", "end"]:
 _workflow = StateGraph(BodhState)
 
 # Add nodes
+_workflow.add_node("context_manager", context_manager_node)
 _workflow.add_node("intent",    intent_node)
 _workflow.add_node("architect", architect_node)
 _workflow.add_node("content",   content_node)
@@ -573,7 +709,8 @@ _workflow.add_node("evaluator", evaluator_node)
 _workflow.add_node("refiner",   refiner_node)
 
 # Linear edges
-_workflow.add_edge(START,       "intent")
+_workflow.add_edge(START,       "context_manager")
+_workflow.add_edge("context_manager", "intent")
 _workflow.add_edge("intent",    "architect")
 _workflow.add_edge("architect", "content")
 _workflow.add_edge("content",   "student")

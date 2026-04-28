@@ -52,6 +52,8 @@ export type TurnMessage = {
   mistake_analysis?: Record<string, any>;
   next_recommended_topic?: string;
   topic_progress?: Record<string, any>;
+  current_topic?: string;
+  is_new_topic?: boolean;
 };
 
 export type ConversationSummary = {
@@ -376,7 +378,7 @@ export default function Home() {
 
         {/* ── Scrollable chat area ── */}
         <main className="flex-1 overflow-y-auto">
-          <div className="max-w-[720px] mx-auto px-4 py-8">
+          <div className="max-w-[850px] mx-auto px-4 py-8">
             <AnimatePresence mode="wait">
               {!hasContent ? (
                 <EmptyState key="empty" onChipClick={(text) => {

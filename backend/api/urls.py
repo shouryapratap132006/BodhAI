@@ -8,6 +8,7 @@ from .views import (
     LearnView,
     LearningPathView,
     TopicProgressView,
+    DashboardView,
 )
 
 urlpatterns = [
@@ -24,4 +25,5 @@ urlpatterns = [
     # Phase 6
     path("learning-path/",              LearningPathView.as_view(),     name="learning-path"),
     path("topic-progress/",             TopicProgressView.as_view(),    name="topic-progress"),
+    path("dashboard/",                  DashboardView.as_view(),        name="dashboard"),
 ]

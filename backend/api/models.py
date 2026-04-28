@@ -8,11 +8,34 @@ class Conversation(models.Model):
     """
     title = models.CharField(max_length=200, blank=True)   # auto-filled from first message
     mode = models.CharField(max_length=20, default="balanced")
+    current_topic = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"[{self.id}] {self.title or 'Untitled'}"
+
+class UserLearningTopic(models.Model):
+    user_id = models.CharField(max_length=255, default="default")
+    topic_name = models.CharField(max_length=255)
+    progress = models.FloatField(default=0.0) # 0-100
+    last_accessed = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class QuizAttempt(models.Model):
+    user_id = models.CharField(max_length=255, default="default")
+    topic = models.CharField(max_length=255)
+    score = models.IntegerField(default=0)
+    total_questions = models.IntegerField(default=0)
+    mistakes = models.JSONField(default=list)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+class LearningHistory(models.Model):
+    user_id = models.CharField(max_length=255, default="default")
+    topic = models.CharField(max_length=255)
+    mode = models.CharField(max_length=50) # learn/quiz/solve
+    summary = models.TextField(blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
 
 
 class LearningPath(models.Model):

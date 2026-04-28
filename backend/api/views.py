@@ -22,7 +22,7 @@ from .serializers import (
     LearningPathSerializer,
     TopicProgressSerializer,
 )
-from .models import Learning, Conversation, Message, LearningPath, TopicProgress
+from .models import Learning, Conversation, Message, LearningPath, TopicProgress, UserLearningTopic, QuizAttempt, LearningHistory
 from .utils.extraction import extract_file_content
 from .agents.graph import graph
 from langchain_groq import ChatGroq
@@ -112,6 +112,12 @@ class ChatView(APIView):
             "mode":                 mode,
             "teaching_mode":        teaching_mode,
             "conversation_history": conversation_history,
+            "current_topic":        conversation.current_topic if conversation else "",
+            "previous_topic":       "",
+            "is_new_topic":         False,
+            "user_level":           "Beginner",
+            "weak_areas":           [],
+            "last_score":           0.0,
             "intent":               "",
             "architect_outline":    "",
             "refinement_pass":      0,
@@ -147,6 +153,37 @@ class ChatView(APIView):
         improved_explanation = result.get("improved_explanation", "")
         intent               = result.get("intent", "learn_topic")
         response_type        = result.get("response_type", "learn")
+        current_topic        = result.get("current_topic", "")
+        is_new_topic         = result.get("is_new_topic", False)
+
+        # ── Update Conversation & Memory Context ───────────────────────────
+        if conversation and current_topic and conversation.current_topic != current_topic:
+            conversation.current_topic = current_topic
+            conversation.save()
+
+        user_id = "default"
+        if current_topic:
+            # Update Learning Progress
+            ult, _ = UserLearningTopic.objects.get_or_create(user_id=user_id, topic_name=current_topic)
+            ult.progress = min(100.0, ult.progress + 5.0)
+            ult.save()
+
+            # Record History
+            LearningHistory.objects.create(
+                user_id=user_id,
+                topic=current_topic,
+                mode=teaching_mode,
+                summary=explanation[:200] if explanation else "Studied"
+            )
+
+            # Record Quiz
+            if response_type == "test" and result.get("mistake_analysis"):
+                QuizAttempt.objects.create(
+                    user_id=user_id,
+                    topic=current_topic,
+                    score=result.get("evaluation", {}).get("score", 0) if isinstance(result.get("evaluation"), dict) else 0,
+                    mistakes=result.get("mistake_analysis", {})
+                )
 
         # The `explanation` field should store the ORIGINAL explanation
         # The `improved_explanation` field stores the refinement
@@ -211,6 +248,8 @@ class ChatView(APIView):
                 "mistake_analysis":   result.get("mistake_analysis", {}),
                 "next_recommended_topic": result.get("next_recommended_topic", ""),
                 "topic_progress":     result.get("topic_progress", {}),
+                "current_topic":      current_topic,
+                "is_new_topic":       is_new_topic,
             },
             status=status.HTTP_200_OK,
         )
@@ -442,4 +481,18 @@ class TopicProgressView(APIView):
         progress.save()
         serializer = TopicProgressSerializer(progress)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class DashboardView(APIView):
+    def get(self, request):
+        user_id = request.query_params.get("user_id", "default")
+        topics = UserLearningTopic.objects.filter(user_id=user_id).order_by("-last_accessed")
+        quizzes = QuizAttempt.objects.filter(user_id=user_id).order_by("-timestamp")
+        history = LearningHistory.objects.filter(user_id=user_id).order_by("-timestamp")[:10]
+
+        data = {
+            "topics": [{"topic_name": t.topic_name, "progress": t.progress, "last_accessed": t.last_accessed} for t in topics],
+            "quizzes": [{"topic": q.topic, "score": q.score, "total": q.total_questions, "mistakes": q.mistakes, "timestamp": q.timestamp} for q in quizzes],
+            "recent_activity": [{"topic": h.topic, "mode": h.mode, "summary": h.summary, "timestamp": h.timestamp} for h in history]
+        }
+        return Response(data, status=status.HTTP_200_OK)
 
