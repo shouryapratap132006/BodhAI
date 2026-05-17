@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, File as FileIcon, X, Loader2, ArrowUp } from "lucide-react";
+import { Upload, File as FileIcon, X, Loader2, ArrowUp, BookOpen, Search, Target, FileEdit, Zap } from "lucide-react";
 import type { Mode } from "../page";
 
 interface InputBoxProps {
@@ -33,11 +33,11 @@ const modeAccent: Record<Mode, string> = {
 
 // Quick-prompt pills shown above input when empty
 const QUICK_PROMPTS = [
-  { label: "📖 Learn", prompt: "Explain " },
-  { label: "🔍 Solve", prompt: "Help me solve: " },
-  { label: "🎯 Quiz",  prompt: "Quiz me on " },
-  { label: "📝 Homework", prompt: "Give me practice problems on " },
-  { label: "⚡ Revise", prompt: "Quick revision of " },
+  { label: "Learn", icon: BookOpen, prompt: "Explain " },
+  { label: "Solve", icon: Search, prompt: "Help me solve: " },
+  { label: "Quiz",  icon: Target, prompt: "Quiz me on " },
+  { label: "Homework", icon: FileEdit, prompt: "Give me practice problems on " },
+  { label: "Revise", icon: Zap, prompt: "Quick revision of " },
 ];
 
 export default function InputBox({
@@ -66,16 +66,20 @@ export default function InputBox({
             transition={{ duration: 0.2 }}
             className="flex flex-wrap gap-1.5 mb-3"
           >
-            {QUICK_PROMPTS.map((p) => (
-              <button
-                key={p.label}
-                onClick={() => setInput(p.prompt)}
-                className="px-2.5 py-1 text-[11px] rounded-full border border-[#1e1e1e] text-[#444]
-                  hover:text-[#888] hover:border-[#2e2e2e] bg-[#0d0d0d] transition-all duration-150"
-              >
-                {p.label}
-              </button>
-            ))}
+            {QUICK_PROMPTS.map((p) => {
+              const Icon = p.icon;
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => setInput(p.prompt)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded-full border border-[#1e1e1e] text-[#444]
+                    hover:text-[#888] hover:border-[#2e2e2e] bg-[#0d0d0d] transition-all duration-150"
+                >
+                  <Icon className="w-3 h-3" />
+                  {p.label}
+                </button>
+              );
+            })}
           </motion.div>
         )}
       </AnimatePresence>

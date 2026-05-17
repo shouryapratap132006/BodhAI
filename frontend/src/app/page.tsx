@@ -54,6 +54,7 @@ export type TurnMessage = {
   topic_progress?: Record<string, any>;
   current_topic?: string;
   is_new_topic?: boolean;
+  fileName?: string;
 };
 
 export type ConversationSummary = {
@@ -215,16 +216,17 @@ export default function Home() {
   }, []);
 
   // ── Send message ──────────────────────────────────────────────────
-  const handleSend = async () => {
-    if (!input.trim() && !file) return;
+  const handleSend = async (overrideInput?: string) => {
+    const textToSend = typeof overrideInput === 'string' ? overrideInput : input;
+    if (!textToSend.trim() && !file) return;
     setLoading(true);
     setError(null);
 
-    const userMessage: TurnMessage = { role: "user", content: input };
+    const userMessage: TurnMessage = { role: "user", content: textToSend, fileName: file?.name };
     setTurns(prev => [...prev, userMessage]);
 
     const formData = new FormData();
-    formData.append("input", input);
+    formData.append("input", textToSend);
     formData.append("mode", mode);
     formData.append("teaching_mode", teachingMode);
     if (activeConvId) formData.append("conversation_id", String(activeConvId));
@@ -410,7 +412,7 @@ export default function Home() {
 
                   {/* Chat turns */}
                   {turns.map((turn, idx) => (
-                    <ChatMessage key={idx} message={turn} />
+                    <ChatMessage key={idx} message={turn} onAction={(text) => handleSend(text)} />
                   ))}
 
                   {/* Typing indicator */}
@@ -478,6 +480,10 @@ export default function Home() {
         isOpen={dashboardOpen} 
         onClose={() => setDashboardOpen(false)} 
         apiUrl={API_URL} 
+        onStartTopic={(topic) => {
+          setDashboardOpen(false);
+          handleSend(`Teach me about ${topic}`);
+        }}
       />
     </div>
   );

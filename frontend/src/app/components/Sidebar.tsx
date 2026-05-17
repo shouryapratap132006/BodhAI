@@ -1,12 +1,17 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, BookOpen, Clock, X, Trash2, MessageSquare, TrendingUp } from "lucide-react";
+import { Plus, BookOpen, Clock, X, Trash2, MessageSquare, TrendingUp, Search, Target, FileEdit, Zap, RefreshCw, Library } from "lucide-react";
 import type { ConversationSummary, Mode } from "../page";
 
-const intentEmoji: Record<string, string> = {
-  learn_topic: "📖", solve_question: "🔍", quiz_me: "🎯",
-  homework: "📝", revise: "⚡", explain_again: "🔄", get_resources: "📚",
+const intentIcons: Record<string, React.ElementType> = {
+  learn_topic: BookOpen,
+  solve_question: Search,
+  quiz_me: Target,
+  homework: FileEdit,
+  revise: Zap,
+  explain_again: RefreshCw,
+  get_resources: Library,
 };
 
 const modeColors: Record<string, string> = {
@@ -111,9 +116,9 @@ export default function Sidebar({
               <ul className="space-y-0.5">
                 {conversations.map((conv) => {
                   const isActive = activeId === conv.id;
-                  const emoji = conv.last_message
-                    ? (intentEmoji[conv.last_message.intent] ?? "💬")
-                    : "💬";
+                  const Icon = conv.last_message && intentIcons[conv.last_message.intent]
+                    ? intentIcons[conv.last_message.intent]
+                    : MessageSquare;
                   return (
                     <li key={conv.id}>
                       <div className={[
@@ -127,7 +132,7 @@ export default function Sidebar({
                           className="flex-1 text-left px-3 py-2.5 min-w-0"
                         >
                           <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className="text-[13px]">{emoji}</span>
+                            <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-orange-400" : "text-[#555] group-hover:text-[#888]"}`} />
                             <span className={`truncate text-[13px] leading-snug ${isActive ? "text-white" : "text-[#777] group-hover:text-[#ccc]"}`}>
                               {conv.title || "Untitled"}
                             </span>

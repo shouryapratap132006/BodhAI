@@ -2,37 +2,43 @@
 
 > **"BodhAI is not just an AI tutor—it is an autonomous instructional designer that structures, delivers, evaluates, and refines learning experiences using agentic feedback loops."**
 
-BodhAI is a sophisticated, multi-modal **Curriculum Generation Engine**. Instead of acting as a simple Q&A chatbot, it explicitly models instructional design frameworks (like Gagné’s Nine Events of Instruction and Merrill’s First Principles) to build, assess, and adapt full learning experiences.
-
-![BodhAI Interface Demo](frontend/public/favicon.ico) *(A sleek, ChatGPT-style continuous learning UI)*
+BodhAI is a sophisticated, multi-modal **Curriculum Generation Engine**. Instead of acting as a simple Q&A chatbot, it explicitly models instructional design frameworks to build, assess, and adapt full learning experiences.
 
 ---
 
-## ✨ Core Capabilities
+## 🎯 The Problem Statement
 
-BodhAI is powered by a **6-node LangGraph Agent Pipeline** built to teach effectively.
+**The Scenario:** Most "AI Tutors" just act as standard chatbots that output walls of text. However, true pedagogy requires structure, pacing, and verification to ensure genuine comprehension. 
 
-### 1. Curriculum Generation & Lesson Framing
-From any topic, BodhAI generates a full structured curriculum.
-- **Lesson Plan Mode**: Toggles a clean UI rendering the entire pedagogical structure (Gain Attention, Objectives, Prior Knowledge, Content, Guided Practice, Assessment, Feedback, and Improvement).
-- **Multi-Mode Flexibility**: Switch natively between `Learn`, `Solve`, `Quiz`, `Homework`, and `Revise`.
+**The Challenge:** Build an autonomous curriculum generation system that ingests raw, dry technical documentation (e.g., a new software library, historical texts, or math concepts) and transforms it into a highly structured, interactive, and personalized lesson.
 
-### 2. Pedagogical Feedback Loop
-BodhAI doesn't just send the first draft. It runs an internal verification loop:
-1. **Content Agent** drafts the lesson or solution.
-2. **Student Agent** simulates a beginner, attempting to find confusing parts or gaps.
-3. **Evaluator Agent** reviews the lesson, running explicit **Learning Gap Detection** (identifying misunderstood concepts, weak reasoning, or incorrect assumptions).
-4. **Refiner Agent** improves and simplifies the explanation *before* the user sees it.
+---
 
-### 3. Before vs After Improvement View
-BodhAI visually proves its intelligence. When the system detects a gap and improves its own explanation, users can toggle between the **Original** and **Improved** explanations to see exactly how the AI adapted its teaching style.
+## ✨ Core Capabilities & The Agentic Workflow
 
-### 4. Interactive Assessment Engine
-- Real-time interactive UI for **MCQs** and **Short Answer** questions.
-- Adaptive hints and evaluative feedback upon answering.
+BodhAI is powered by a **multi-agent LangGraph pipeline** designed specifically to mimic the workflow of an expert instructional designer.
 
-### 5. Multi-Modal Context & Chat Continuity
-Upload **PDFs, PPTs, and Images** for BodhAI to use as reference material. It remembers your previous questions in the session, allowing for natural, continuous follow-up conversations.
+### 1. The Architect Agent 
+Unlike traditional LLMs that just start typing, BodhAI first routes your input to an Architect Agent. This agent **must map the raw data to strict instructional design frameworks** (like Gagné’s Nine Events of Instruction or Merrill's First Principles), constructing a rigid pedagogical blueprint before any content is ever written.
+
+### 2. The Content Agent 
+Working directly off the Architect's outline, the Content Agent **generates the actual teaching material**. It creates conversational lessons, practical examples, interactive step-by-step guides, and contextual assessments (like MCQs or short-answer questions) tailored perfectly to the blueprint.
+
+### 3. The Simulated Student Agent & Evaluator
+Before you ever see the lesson, BodhAI runs an internal verification loop. A **Simulated Student Agent** actively tries to complete the generated exercises and comprehend the lesson using a completely separate LLM context. It intentionally looks for confusing points, logic gaps, or missing examples. 
+If the student struggles, an **Evaluator Agent** flags the failure logs, forcing the pipeline to dynamically rewrite and simplify the confusing parts of the lesson before it is finally delivered to you.
+
+### 4. Interactive Learning Dashboard & Progress Tracking
+BodhAI doesn't just forget your progress when you close the chat. 
+- **Topic Normalization:** As you chat, it automatically identifies and normalizes topics, tracking your interaction effort.
+- **Dynamic Scoring:** Your progress isn't just a flat increase. It is algorithmically blended with your actual performance on quizzes and assessments, offering a true measure of your mastery.
+- **Weak Areas Analysis:** The dashboard displays precise, structured JSON extractions of your recurring mistakes, misconceptions, and tips for improvement.
+
+### 5. Inline Assessment & Evaluation Engine
+BodhAI moves away from passive reading.
+- **Clickable Assessments:** When the AI generates a practice problem or test question, you can click directly on the question card in the UI to open an inline text box.
+- **Targeted Evaluation:** Submit your answer directly to the backend. The AI will evaluate *only* your answer, providing immediate Mistake Analysis, pointing out exactly where your logic failed, and offering a hint without hallucinating an unprompted lesson.
+- **Playable Quizzes:** Engaging, interactive MCQ interfaces that provide instant visual feedback.
 
 ---
 

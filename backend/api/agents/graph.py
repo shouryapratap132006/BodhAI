@@ -351,10 +351,10 @@ def content_node(state: BodhState) -> dict:
         ),
         "quiz_me": (
             "quiz",
-            '{"response_type":"quiz","explanation":"Brief intro to the test...","questions":['
+            '{"response_type":"quiz","questions":['
             '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"A","hint":"explanation of answer..."},'
             '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"B","hint":"explanation of answer..."},'
-            '{"type":"short","text":"...","answer":"..."}],"next_recommended_topic":"...","topic_progress":{"accuracy":60,"level":"medium"}}'
+            '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"C","hint":"explanation of answer..."}],"next_recommended_topic":"...","topic_progress":{"accuracy":60,"level":"medium"}}'
         ),
         "homework": (
             "homework",
@@ -393,8 +393,10 @@ def content_node(state: BodhState) -> dict:
         else:
             output_specs["quiz_me"] = (
                 "quiz",
-                '{"response_type":"quiz","explanation":"Brief encouraging intro...","questions":['
-                '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"A","hint":"explanation of answer and why others are wrong"}],"next_recommended_topic":"...","topic_progress":{"accuracy":60,"level":"medium"}}'
+                '{"response_type":"quiz","questions":['
+                '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"A","hint":"explanation of answer and why others are wrong"},'
+                '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"B","hint":"explanation of answer and why others are wrong"},'
+                '{"type":"mcq","text":"...","options":["A)...","B)...","C)...","D)..."],"answer":"C","hint":"explanation of answer and why others are wrong"}],"next_recommended_topic":"...","topic_progress":{"accuracy":60,"level":"medium"}}'
             )
 
     resp_type, output_template = output_specs.get(intent, output_specs["learn_topic"])
@@ -417,6 +419,25 @@ def content_node(state: BodhState) -> dict:
         context_str += f"- User's last quiz score on this topic: {last_score}\n"
     context_str += "Focus ONLY on the current topic.\n"
 
+    explanation_instruction = ""
+    if intent in ["learn_topic", "explain_again"]:
+        explanation_instruction = (
+            "### OUTPUT FORMAT INSTRUCTION FOR 'explanation' FIELD\n"
+            "IMPORTANT: If the user explicitly asks for a specific length or format (e.g. 'in 3 lines', 'very brief'), IGNORE the template below and JUST provide exactly what they asked for without any extra sections.\n\n"
+            "OTHERWISE, use this default Markdown-rich format strictly for the 'explanation' text (with proper newlines):\n"
+            "(Start directly with the first sentence. DO NOT output the word 'Hook' or any starting headings like '### Start' or '### 👋 Hook')\n\n"
+            "### 📌 Concept\n(short explanation broken into small parts)\n\n"
+            "### 🧠 Deep Dive\n(why it works / simple logic)\n\n"
+            "### ⚡ Example\n(real-life or simple example)\n\n"
+            "### 🧩 Your Turn\n(ask a question or mini challenge to make it interactive)\n\n"
+            "### 📈 Next Step\n(what to learn next based on this topic)\n"
+        )
+    else:
+        explanation_instruction = (
+            "### OUTPUT FORMAT INSTRUCTION\n"
+            "Provide ONLY what is strictly needed for the intent (like questions or hints). DO NOT provide an 'explanation' field unless evaluating a test or if it is strictly required by the output template.\n"
+        )
+
     prompt = (
         "You are NOT an AI. You are a highly engaging personal home tutor teaching a real student sitting in front of you.\n"
         "Your goal is NOT to explain — your goal is to make the student UNDERSTAND and stay engaged.\n\n"
@@ -431,29 +452,22 @@ def content_node(state: BodhState) -> dict:
         + output_template
         + "\n\n### TEACHING STYLE (VERY IMPORTANT)\n"
         "- Start like a conversation, not a lecture.\n"
-        "- Keep explanations SHORT, crisp, and broken into small chunks.\n"
+        "- IMPORTANT ON LENGTH: By default, provide a detailed and comprehensive explanation (do NOT make it overly short). However, if the user explicitly specifies a length constraint (e.g., 'in brief', 'in 3 lines', 'detailed 5 paragraphs'), you MUST strictly obey their exact length and format instructions.\n"
         "- Use simple language first, then slightly deepen.\n"
-        "- Avoid long paragraphs completely.\n"
+        "- Avoid massive unbroken blocks of text; break large explanations into readable chunks.\n"
         "- Use headings, bullets, spacing. Make it visually scannable.\n"
         "### HOW TO TEACH\n"
-        "1. Start with a HOOK: Ask a relatable question OR give a real-life analogy.\n"
+        "1. Start directly with a relatable question OR give a real-life analogy (no 'Hook' heading).\n"
         "2. Break into clear sections using bold Markdown headings (###).\n"
-        "3. Explain in small readable chunks. Avoid long blocks of text.\n"
+        "3. Explain thoroughly but keep text chunks readable.\n"
         "4. Break problems down step-by-step.\n"
         "### INTERACTION (CRITICAL)\n"
         "- Ask 1–2 questions during explanation.\n"
         "- Add a small challenge at the end.\n"
         "- Make the student THINK, not just read.\n"
-        "### OUTPUT FORMAT INSTRUCTION FOR 'explanation' FIELD\n"
-        "Use this Markdown-rich format strictly for the 'explanation' text (with proper newlines):\n"
-        "### 👋 Start\n(Conversational hook)\n\n"
-        "### 📌 Concept\n(short explanation broken into small parts)\n\n"
-        "### 🧠 Deep Dive\n(why it works / simple logic)\n\n"
-        "### ⚡ Example\n(real-life or simple example)\n\n"
-        "### 🧩 Your Turn\n(ask a question or mini challenge to make it interactive)\n\n"
-        "### 📈 Next Step\n(what to learn next based on this topic)\n"
-        "### STRICT MODE RULES:\n"
-        "- QUIZ MODE (teaching_mode='learn'): Practice mode. Make it fun, not exam-like. Ask exactly 1 tricky but intuitive question at a time. Wait for user answer. Provide immediate feedback using 'answer' and 'hint' (explain correct/incorrect and why other options are wrong). Tone: encouraging, teaching-oriented.\n"
+        + explanation_instruction
+        + "### STRICT MODE RULES:\n"
+        "- QUIZ MODE (teaching_mode='learn'): Practice mode. Make it fun, not exam-like. Generate exactly 3-4 MCQ questions. Provide immediate feedback using 'answer' and 'hint' (explain correct/incorrect and why other options are wrong) for each. Tone: encouraging, teaching-oriented.\n"
         "- TEST MODE (teaching_mode='test'): Assessment mode. Generate 3-5 questions at once. DO NOT use MCQs. Use ONLY short-answer or conceptual questions. DO NOT provide answers or hints initially. Wait for the user to answer all of them. Tone: neutral, evaluative.\n"
         "- TEST EVALUATION (if teaching_mode='test' and user submits answers): Evaluate their answers. Return their total score, provide a detailed analysis of their answers along with the correct solutions in the 'explanation' field, and populate 'mistake_analysis' with specific feedback and hints.\n"
         "- SOLVE MODE (intent='solve_question'): DO NOT give answer immediately. First give a HINT, then guide step-by-step, then final answer.\n"
@@ -628,8 +642,14 @@ def refiner_node(state: BodhState) -> dict:
     Improve the explanation based on evaluator feedback.
     Produces an improved_explanation and increments refinement_pass.
     """
+    explanation = state.get("explanation", "") or ""
+    if not explanation.strip():
+        return {
+            "improved_explanation": "",
+            "refinement_pass": state.get("refinement_pass", 0) + 1,
+        }
+
     llm = _llm(temperature=0.2, json_mode=True)
-    explanation = state.get("explanation", "")
     feedback = state.get("evaluation", {}).get("feedback", "")
     mode = state.get("mode", "balanced")
     mode_instr = _mode_instructions(mode)
@@ -639,9 +659,9 @@ def refiner_node(state: BodhState) -> dict:
         f"Original Explanation:\n{explanation}\n\n"
         f"Evaluator Feedback:\n{feedback}\n\n"
         "Write a highly engaging, improved version of the explanation addressing the feedback.\n"
-        "CRITICAL: You MUST strictly restructure the output into the following ChatGPT-style tutor format. Do NOT output a single long paragraph. Use bold markdown headings (###).\n\n"
-        "### 👋 Hook\n"
-        "(Start conversationally, e.g. 'Alright, let’s break this down step by step 👇')\n\n"
+        "IMPORTANT: If the original prompt had a strict length/format constraint (e.g., 'in 3 lines'), IGNORE the tutor template below and ONLY provide what was requested.\n\n"
+        "OTHERWISE, you MUST strictly restructure the output into the following ChatGPT-style tutor format. Do NOT output a single long paragraph. Use bold markdown headings (###).\n\n"
+        "(Start conversationally, e.g. 'Alright, let’s break this down step by step 👇' without any heading like '### Hook')\n\n"
         "### 📌 Concept\n"
         "(Define the concept in 1-2 simple lines)\n\n"
         "### 🧠 Intuition\n"
@@ -655,13 +675,13 @@ def refiner_node(state: BodhState) -> dict:
         "### 📈 Next Step\n"
         "(Suggest what to learn next)\n\n"
         "STYLE RULES (VERY IMPORTANT):\n"
-        "- ❌ NO long paragraphs\n"
+        "- ❌ NO unbroken long paragraphs\n"
         "- ❌ NO textbook tone\n"
         "- ❌ NO dense blocks of text\n"
         "- ✅ Use headings, bullet points, and spacing\n"
         "- ✅ Keep it visually clean and highly scannable\n"
-        "- ✅ Prioritize clarity over completeness\n"
-        "- ✅ Keep explanations SHORT but IMPACTFUL\n\n"
+        "- ✅ Prioritize clarity while providing detailed and comprehensive information\n"
+        "- ✅ Strictly follow any length constraints specified by the user (e.g., 'in brief', 'in 3 lines')\n\n"
         'Return ONLY raw JSON: {"improved_explanation": "your full text here"}\n'
         'CRITICAL: "improved_explanation" MUST be a single string containing the formatted markdown text.'
     )

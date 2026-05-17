@@ -8,9 +8,10 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   apiUrl: string;
+  onStartTopic?: (topic: string) => void;
 }
 
-export default function LearningDashboard({ isOpen, onClose, apiUrl }: Props) {
+export default function LearningDashboard({ isOpen, onClose, apiUrl, onStartTopic }: Props) {
   const [data, setData] = useState<any>(null);
 
   const loadData = async () => {
@@ -60,7 +61,11 @@ export default function LearningDashboard({ isOpen, onClose, apiUrl }: Props) {
               </h3>
               <div className="space-y-3">
                 {data?.topics?.map((t: any, i: number) => (
-                  <div key={i} className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 flex items-center justify-between">
+                  <button 
+                    key={i} 
+                    onClick={() => onStartTopic && onStartTopic(t.topic_name)}
+                    className="w-full text-left bg-[#141414] border border-[#2a2a2a] rounded-xl p-4 flex items-center justify-between hover:border-orange-500/50 hover:bg-[#1a1a1a] transition-all"
+                  >
                     <div>
                       <h4 className="text-[14px] font-medium text-white">{t.topic_name}</h4>
                       <p className="text-[11px] text-[#888] mt-1">Last accessed: {new Date(t.last_accessed).toLocaleDateString()}</p>
@@ -69,7 +74,7 @@ export default function LearningDashboard({ isOpen, onClose, apiUrl }: Props) {
                       <div className="text-xl font-bold text-emerald-400">{Math.round(t.progress)}%</div>
                       <div className="text-[10px] text-[#666] uppercase">Progress</div>
                     </div>
-                  </div>
+                  </button>
                 ))}
                 {(!data || data.topics.length === 0) && <p className="text-[13px] text-[#555]">No topics studied yet.</p>}
               </div>
@@ -93,7 +98,16 @@ export default function LearningDashboard({ isOpen, onClose, apiUrl }: Props) {
                         <div className="text-[11px] font-semibold text-red-400 mb-1 flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" /> Weak Areas
                         </div>
-                        <p className="text-[12px] text-[#888] line-clamp-2">{JSON.stringify(q.mistakes)}</p>
+                        <div className="text-[12px] text-[#888] space-y-1.5 mt-2">
+                          {q.mistakes.mistake && <div><strong className="text-[#aaa]">Issue:</strong> {q.mistakes.mistake}</div>}
+                          {q.mistakes.why_wrong && <div><strong className="text-[#aaa]">Why:</strong> {q.mistakes.why_wrong}</div>}
+                          {q.mistakes.correct_approach && <div><strong className="text-[#aaa]">Approach:</strong> {q.mistakes.correct_approach}</div>}
+                          {q.mistakes.tip && <div><strong className="text-[#aaa]">Tip:</strong> {q.mistakes.tip}</div>}
+                          {/* Fallback if it has an unknown structure */}
+                          {!q.mistakes.mistake && !q.mistakes.why_wrong && !q.mistakes.correct_approach && !q.mistakes.tip && (
+                            <p>{typeof q.mistakes === 'string' ? q.mistakes : JSON.stringify(q.mistakes)}</p>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -110,13 +124,17 @@ export default function LearningDashboard({ isOpen, onClose, apiUrl }: Props) {
               </h3>
               <div className="space-y-3">
                 {data?.recent_activity?.map((a: any, i: number) => (
-                  <div key={i} className="bg-[#141414] border border-[#2a2a2a] rounded-xl p-3 flex gap-3">
+                  <button 
+                    key={i} 
+                    onClick={() => onStartTopic && onStartTopic(a.topic)}
+                    className="w-full text-left bg-[#141414] border border-[#2a2a2a] rounded-xl p-3 flex gap-3 hover:border-purple-500/50 hover:bg-[#1a1a1a] transition-all"
+                  >
                     <div className="shrink-0 w-2 h-2 rounded-full bg-purple-500 mt-1.5" />
                     <div>
                       <p className="text-[13px] font-medium text-[#ccc]">{a.topic}</p>
                       <p className="text-[11px] text-[#888] mt-1">{a.mode.toUpperCase()} • {new Date(a.timestamp).toLocaleDateString()}</p>
                     </div>
-                  </div>
+                  </button>
                 ))}
                 {(!data || data.recent_activity.length === 0) && <p className="text-[13px] text-[#555]">No activity.</p>}
               </div>

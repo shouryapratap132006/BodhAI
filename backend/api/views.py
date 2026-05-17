@@ -142,6 +142,8 @@ class ChatView(APIView):
         try:
             result = graph.invoke(initial_state)
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             print(f"[BodhAI] Agent pipeline error: {exc}")
             return Response(
                 {"error": "AI pipeline failed. Please try again."},
@@ -163,32 +165,71 @@ class ChatView(APIView):
 
         user_id = "default"
         if current_topic:
-            # Update Learning Progress
-            ult, _ = UserLearningTopic.objects.get_or_create(user_id=user_id, topic_name=current_topic)
-            ult.progress = min(100.0, ult.progress + 5.0)
+            norm_topic = current_topic.strip().title()
+            ult = UserLearningTopic.objects.filter(user_id=user_id, topic_name__iexact=norm_topic).first()
+            if not ult:
+                ult = UserLearningTopic.objects.create(user_id=user_id, topic_name=norm_topic)
+
+            is_quiz_evaluation = False
+            score = 0
+            
+            topic_prog = result.get("topic_progress", {})
+            if isinstance(topic_prog, dict) and topic_prog.get("accuracy"):
+                score = int(topic_prog.get("accuracy", 0))
+                is_quiz_evaluation = True
+                
+            evaluation = result.get("evaluation", {})
+            if isinstance(evaluation, dict) and evaluation.get("score"):
+                score = int(evaluation.get("score", 0))
+                is_quiz_evaluation = True
+
+            bump = 5.0
+            if is_quiz_evaluation and score > 0:
+                if score > ult.progress:
+                    ult.progress = max(ult.progress + bump, float(score))
+                else:
+                    blended = (ult.progress * 0.6) + (score * 0.4)
+                    ult.progress = max(ult.progress, blended)
+            else:
+                ult.progress += bump
+
+            ult.progress = min(100.0, ult.progress)
             ult.save()
 
             # Record History
             LearningHistory.objects.create(
                 user_id=user_id,
-                topic=current_topic,
+                topic=ult.topic_name,
                 mode=teaching_mode,
                 summary=explanation[:200] if explanation else "Studied"
             )
 
             # Record Quiz
-            if response_type == "test" and result.get("mistake_analysis"):
-                QuizAttempt.objects.create(
-                    user_id=user_id,
-                    topic=current_topic,
-                    score=result.get("evaluation", {}).get("score", 0) if isinstance(result.get("evaluation"), dict) else 0,
-                    mistakes=result.get("mistake_analysis", {})
-                )
+            if response_type in ["test", "quiz"]:
+                mistakes = result.get("mistake_analysis", {})
+                
+                eval_score = 0
+                if isinstance(result.get("evaluation"), dict):
+                    eval_score = int(result.get("evaluation").get("score", 0))
+                
+                final_quiz_score = eval_score if eval_score > 0 else score
+                
+                user_text = request.data.get("input", "").strip().lower()
+                is_initiation = user_text in ["test me", "quiz me", "start quiz", "test", "take a quiz"]
+                
+                if mistakes or final_quiz_score > 0 or not is_initiation:
+                    QuizAttempt.objects.create(
+                        user_id=user_id,
+                        topic=ult.topic_name,
+                        score=final_quiz_score,
+                        total_questions=max(len(result.get("questions", [])), 1),
+                        mistakes=mistakes if mistakes else {}
+                    )
 
         # The `explanation` field should store the ORIGINAL explanation
         # The `improved_explanation` field stores the refinement
 
-        if not explanation and not improved_explanation and not result.get("questions") and not result.get("hint"):
+        if not explanation and not improved_explanation and not result.get("questions") and not result.get("hint") and not result.get("mistake_analysis"):
             return Response(
                 {"error": "AI returned an empty response. Please try again."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

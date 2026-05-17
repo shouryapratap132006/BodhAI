@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { BookOpen, Lightbulb, Target, List, HelpCircle, CheckCircle2, XCircle, ExternalLink, Play, ChevronRight, LayoutList, Map, ArrowRight, ArrowLeftRight, AlertCircle, TrendingUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { BookOpen, Lightbulb, Target, List, HelpCircle, CheckCircle2, XCircle, ExternalLink, Play, ChevronRight, LayoutList, Map, ArrowRight, ArrowLeftRight, AlertCircle, TrendingUp, Search, FileEdit, Zap, RefreshCw, Library, FlaskConical, FileText } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { TurnMessage, Question, Resource, Evaluation } from "../page";
 
-interface Props { message: TurnMessage; }
+interface Props {
+  message: TurnMessage;
+  onAction?: (action: string) => void;
+}
 
 const blockVariants = {
   hidden: { opacity: 0, y: 14 },
@@ -20,14 +23,14 @@ const containerVariants = {
 };
 
 // ── Intent badge ───────────────────────────────────────────────────────────
-const intentConfig: Record<string, { label: string; color: string }> = {
-  learn_topic:    { label: "📖 Learn",         color: "text-blue-400   bg-blue-400/10   border-blue-400/20"    },
-  solve_question: { label: "🔍 Solve",         color: "text-purple-400 bg-purple-400/10 border-purple-400/20" },
-  quiz_me:        { label: "🎯 Quiz",          color: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" },
-  homework:       { label: "📝 Homework",      color: "text-green-400  bg-green-400/10  border-green-400/20"  },
-  revise:         { label: "⚡ Revise",        color: "text-cyan-400   bg-cyan-400/10   border-cyan-400/20"   },
-  explain_again:  { label: "🔄 Re-explain",    color: "text-orange-400 bg-orange-400/10 border-orange-400/20" },
-  get_resources:  { label: "📚 Resources",     color: "text-pink-400   bg-pink-400/10   border-pink-400/20"   },
+const intentConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+  learn_topic:    { label: "Learn",         color: "text-blue-400   bg-blue-400/10   border-blue-400/20",   icon: BookOpen },
+  solve_question: { label: "Solve",         color: "text-purple-400 bg-purple-400/10 border-purple-400/20", icon: Search },
+  quiz_me:        { label: "Quiz",          color: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20", icon: Target },
+  homework:       { label: "Homework",      color: "text-green-400  bg-green-400/10  border-green-400/20",  icon: FileEdit },
+  revise:         { label: "Revise",        color: "text-cyan-400   bg-cyan-400/10   border-cyan-400/20",   icon: Zap },
+  explain_again:  { label: "Re-explain",    color: "text-orange-400 bg-orange-400/10 border-orange-400/20", icon: RefreshCw },
+  get_resources:  { label: "Resources",     color: "text-pink-400   bg-pink-400/10   border-pink-400/20",   icon: Library },
 };
 
 // ── Section label ──────────────────────────────────────────────────────────
@@ -276,7 +279,10 @@ function PlayableQuiz({ questions }: { questions: Question[] }) {
   );
 }
 
-function QuestionsList({ questions, responseType }: { questions: Question[]; responseType?: string }) {
+function QuestionsList({ questions, responseType, onAction }: { questions: Question[]; responseType?: string; onAction?: (action: string) => void }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+
   if (!questions?.length) return null;
   const sectionLabel = responseType === "homework" ? "Practice Problems" :
                        responseType === "revise"   ? "Revision Questions" :
@@ -287,12 +293,20 @@ function QuestionsList({ questions, responseType }: { questions: Question[]; res
       <SectionLabel icon={<HelpCircle className="w-3.5 h-3.5" />} text={sectionLabel} color="text-yellow-500" />
       <div className="space-y-3">
         {questions.map((q, i) => (
-          <div key={i} className={`rounded-xl border p-4 ${difficultyColors[q.type] ?? "border-[#242424] bg-[#111]"}`}>
+          <div 
+            key={i} 
+            className={`rounded-xl border p-4 transition-colors ${onAction ? 'cursor-pointer' : ''} ${
+              activeIndex === i 
+                ? "border-orange-500/50 bg-[#1a1a1a]" 
+                : difficultyColors[q.type] ?? "border-[#242424] bg-[#111]"
+            } ${onAction && activeIndex !== i ? 'hover:bg-[#161616]' : ''}`}
+            onClick={() => onAction && setActiveIndex(activeIndex === i ? null : i)}
+          >
             <div className="flex items-start gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-[#1a1a1a] border border-[#333] text-[11px] font-semibold text-[#888] flex items-center justify-center mt-0.5">
                 {i + 1}
               </span>
-              <div className="flex-1 space-y-2">
+              <div className="flex-1 space-y-2 min-w-0">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[#555]">
                   {difficultyLabel[q.type] ?? q.type}
                 </span>
@@ -324,6 +338,47 @@ function QuestionsList({ questions, responseType }: { questions: Question[]; res
                     <span className="font-semibold">Hint:</span> {q.hint}
                   </p>
                 )}
+
+                {/* Expandable answer input */}
+                {onAction && (
+                  <AnimatePresence>
+                    {activeIndex === i && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                        animate={{ opacity: 1, height: "auto", marginTop: 12 }}
+                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="overflow-hidden"
+                      >
+                        <div className="flex gap-2">
+                          <input 
+                            type="text"
+                            value={answers[i] || ""}
+                            onChange={(e) => setAnswers({...answers, [i]: e.target.value})}
+                            placeholder="Type your answer to be evaluated..."
+                            className="flex-1 min-w-0 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-[13px] text-white focus:outline-none focus:border-orange-500/50"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && answers[i]?.trim()) {
+                                onAction(`Evaluate my answer to this question: "${q.text}". My answer is: "${answers[i]}"`);
+                                setActiveIndex(null);
+                              }
+                            }}
+                          />
+                          <button
+                            disabled={!answers[i]?.trim()}
+                            onClick={() => {
+                              onAction(`Evaluate my answer to this question: "${q.text}". My answer is: "${answers[i]}"`);
+                              setActiveIndex(null);
+                            }}
+                            className="px-4 py-2 bg-orange-500 hover:bg-orange-400 disabled:bg-[#333] disabled:text-[#888] text-white text-[12px] font-semibold rounded-lg transition-colors shrink-0"
+                          >
+                            Send
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                )}
               </div>
             </div>
           </div>
@@ -333,40 +388,6 @@ function QuestionsList({ questions, responseType }: { questions: Question[]; res
   );
 }
 
-// ── Student attempt + evaluation ───────────────────────────────────────────
-function EvaluationBlock({ attempt, evaluation }: { attempt?: string; evaluation?: Evaluation }) {
-  if (!attempt && !evaluation?.feedback) return null;
-  return (
-    <motion.section variants={blockVariants}>
-      <div className="space-y-3">
-        {attempt && (
-          <div className="rounded-xl border border-[#2a2a2a] bg-[#111] p-4">
-            <SectionLabel icon={<HelpCircle className="w-3.5 h-3.5" />} text="Student Attempt" color="text-[#666]" />
-            <p className="text-[13px] text-[#888] italic leading-relaxed">&quot;{attempt}&quot;</p>
-          </div>
-        )}
-        {evaluation && (
-          <div className={`rounded-xl border p-4 border-l-2 ${evaluation.correct
-            ? "border-emerald-500/30 bg-emerald-500/5 border-l-emerald-500"
-            : "border-orange-500/30 bg-orange-500/5 border-l-orange-500"}`}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              {evaluation.correct
-                ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                : <XCircle className="w-4 h-4 text-orange-400" />}
-              <span className={`text-[12px] font-semibold uppercase tracking-wider ${evaluation.correct ? "text-emerald-400" : "text-orange-400"}`}>
-                {evaluation.correct ? "Looks good!" : "Needs improvement"}
-              </span>
-            </div>
-            {evaluation.feedback && (
-              <p className="text-[13px] text-[#aaa] leading-relaxed">{evaluation.feedback}</p>
-            )}
-          </div>
-        )}
-      </div>
-    </motion.section>
-  );
-}
 
 // ── Mistake Analysis block ──────────────────────────────────────────────────
 function MistakeAnalysisBlock({ analysis }: { analysis?: Record<string, string> }) {
@@ -437,7 +458,7 @@ function ResourcesList({ resources }: { resources: Resource[] }) {
 }
 
 // ── Main ChatMessage component ─────────────────────────────────────────────
-export default function ChatMessage({ message }: Props) {
+export default function ChatMessage({ message, onAction }: Props) {
   const [viewMode, setViewMode] = useState<"chat" | "lesson">("chat");
   const [showOriginal, setShowOriginal] = useState(false);
 
@@ -449,8 +470,20 @@ export default function ChatMessage({ message }: Props) {
         transition={{ duration: 0.3 }}
         className="flex justify-end mb-6"
       >
-        <div className="max-w-[80%] bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl rounded-tr-sm px-4 py-3">
-          <p className="text-[16px] text-[#e0e0e8] leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        <div className="max-w-[80%] flex flex-col gap-2">
+          {message.fileName && (
+            <div className="flex items-center gap-2 self-end bg-[#111] border border-[#333] rounded-xl px-3 py-2 max-w-full">
+              <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-orange-400" />
+              </div>
+              <span className="text-[13px] font-medium text-[#aaa] truncate max-w-[200px]">{message.fileName}</span>
+            </div>
+          )}
+          {message.content && (
+            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl rounded-tr-sm px-4 py-3 self-end">
+              <p className="text-[16px] text-[#e0e0e8] leading-relaxed whitespace-pre-wrap">{message.content}</p>
+            </div>
+          )}
         </div>
       </motion.div>
     );
@@ -477,11 +510,18 @@ export default function ChatMessage({ message }: Props) {
       <div className="flex-1 min-w-0 space-y-6">
         {/* Top bar with badges and toggles */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {intentInfo && (
-            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${message.type === 'test' ? 'text-red-400 bg-red-400/10 border-red-400/20' : intentInfo.color}`}>
-              {message.type === 'test' ? '🧪 Test' : intentInfo.label}
-            </div>
-          )}
+          {intentInfo && (() => {
+            const Icon = intentInfo.icon;
+            return (
+              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${message.type === 'test' ? 'text-red-400 bg-red-400/10 border-red-400/20' : intentInfo.color}`}>
+                {message.type === 'test' ? (
+                  <><FlaskConical className="w-3 h-3" /> Test</>
+                ) : (
+                  <><Icon className="w-3 h-3" /> {intentInfo.label}</>
+                )}
+              </div>
+            );
+          })()}
 
           <div className="flex items-center gap-2">
             {hasImprovement && viewMode === "chat" && (
@@ -523,10 +563,13 @@ export default function ChatMessage({ message }: Props) {
                 </div>
               )}
               {message.next_recommended_topic && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#111] border border-[#2a2a2a] text-[11px] font-medium text-[#888]">
+                <button 
+                  onClick={() => onAction && onAction(`Teach me about ${message.next_recommended_topic}`)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#111] border border-[#2a2a2a] text-[11px] font-medium text-[#888] hover:text-blue-400 hover:border-blue-500/30 transition-all cursor-pointer"
+                >
                   <ArrowRight className="w-3 h-3 text-blue-400" />
                   Next: {message.next_recommended_topic}
-                </div>
+                </button>
               )}
             </div>
           )}
@@ -589,16 +632,12 @@ export default function ChatMessage({ message }: Props) {
               {message.type === "quiz" ? (
                 <>
                   <PlayableQuiz questions={(message.questions ?? []).filter(q => q.type === "mcq")} />
-                  <QuestionsList questions={(message.questions ?? []).filter(q => q.type !== "mcq")} responseType={message.type} />
+                  <QuestionsList questions={(message.questions ?? []).filter(q => q.type !== "mcq")} responseType={message.type} onAction={onAction} />
                 </>
               ) : (
-                <QuestionsList questions={message.questions ?? []} responseType={message.type} />
+                <QuestionsList questions={message.questions ?? []} responseType={message.type} onAction={onAction} />
               )}
 
-              {/* Student attempt + evaluation (only show for original draft or if perfect on first try) */}
-              {(!hasImprovement || showOriginal) && (
-                <EvaluationBlock attempt={message.student_attempt} evaluation={message.evaluation} />
-              )}
 
               {/* Mistake Analysis */}
               <MistakeAnalysisBlock analysis={message.mistake_analysis} />
